@@ -1,0 +1,193 @@
+{
+  "timestamp": "2026-02-28T15:24:43.387576",
+  "source_url": "https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/arcgis/rest/services/CPWSpeciesData/FeatureServer",
+  "layers_extracted": [
+    {
+      "layer_id": 80,
+      "layer_name": "Moose_DAUs",
+      "feature_count": 71,
+      "crs": "EPSG:4326",
+      "bounds": [
+        -107.770073408805,
+        37.4684564388211,
+        -105.333366722759,
+        40.6312437529619
+      ],
+      "fields": [
+        "geometry",
+        "FID",
+        "ACTIVITYCO",
+        "INPUT_DATE",
+        "EDIT_DATE",
+        "GlobalID",
+        "Shape__Length"
+      ],
+      "field_name_mapping": {
+        "Shape__Length": "Shape__Len"
+      },
+      "geometry_type": {
+        "LineString": 71
+      },
+      "geojson_path": "data\\raw\\moose\\Moose_DAUs.geojson",
+      "shapefile_path": "data\\raw\\moose\\Moose_DAUs\\Moose_DAUs.shp"
+    },
+    {
+      "layer_id": 81,
+      "layer_name": "Moose_GMUs",
+      "feature_count": 133,
+      "crs": "EPSG:4326",
+      "bounds": [
+        -108.154833585224,
+        37.119117842394,
+        -104.888001229281,
+        41.0028913609282
+      ],
+      "fields": [
+        "geometry",
+        "FID",
+        "ACTIVITYCO",
+        "INPUT_DATE",
+        "EDIT_DATE",
+        "GlobalID",
+        "Shape__Area",
+        "Shape__Length"
+      ],
+      "field_name_mapping": {
+        "Shape__Area": "Shape__Are",
+        "Shape__Length": "Shape__Len"
+      },
+      "geometry_type": {
+        "Polygon": 127,
+        "MultiPolygon": 6
+      },
+      "geojson_path": "data\\raw\\moose\\Moose_GMUs.geojson",
+      "shapefile_path": "data\\raw\\moose\\Moose_GMUs\\Moose_GMUs.shp"
+    },
+    {
+      "layer_id": 82,
+      "layer_name": "Moose_Habitat",
+      "feature_count": 168,
+      "crs": "EPSG:4326",
+      "bounds": [
+        -109.048956421945,
+        37.4672963981055,
+        -104.888001229281,
+        40.997341134087
+      ],
+      "fields": [
+        "geometry",
+        "FID",
+        "ACTIVITYCO",
+        "INPUT_DATE",
+        "EDIT_DATE",
+        "GlobalID",
+        "Shape__Area",
+        "Shape__Length"
+      ],
+      "field_name_mapping": {
+        "Shape__Area": "Shape__Are",
+        "Shape__Length": "Shape__Len"
+      },
+      "geometry_type": {
+        "Polygon": 165,
+        "MultiPolygon": 3
+      },
+      "geojson_path": "data\\raw\\moose\\Moose_Habitat.geojson",
+      "shapefile_path": "data\\raw\\moose\\Moose_Habitat\\Moose_Habitat.shp"
+    },
+    {
+      "layer_id": 83,
+      "layer_name": "Moose_Winter_Range",
+      "feature_count": 6,
+      "crs": "EPSG:4326",
+      "bounds": [
+        -109.05002833902,
+        37.1087621226631,
+        -104.811053746028,
+        41.0034577021289
+      ],
+      "fields": [
+        "geometry",
+        "FID",
+        "ACTIVITYCO",
+        "INPUT_DATE",
+        "EDIT_DATE",
+        "GlobalID",
+        "Shape__Area",
+        "Shape__Length"
+      ],
+      "field_name_mapping": {
+        "Shape__Area": "Shape__Are",
+        "Shape__Length": "Shape__Len"
+      },
+      "geometry_type": {
+        "Polygon": 6
+      },
+      "geojson_path": "data\\raw\\moose\\Moose_Winter_Range.geojson",
+      "shapefile_path": "data\\raw\\moose\\Moose_Winter_Range\\Moose_Winter_Range.shp"
+    },
+    {
+      "layer_id": 84,
+      "layer_name": "Moose_Summer_Range",
+      "feature_count": 85,
+      "crs": "EPSG:4326",
+      "bounds": [
+        -109.05002833902,
+        37.2384010907559,
+        -104.88492689964,
+        41.0034216847623
+      ],
+      "fields": [
+        "geometry",
+        "FID",
+        "ACTIVITYCO",
+        "INPUT_DATE",
+        "EDIT_DATE",
+        "GlobalID",
+        "Shape__Area",
+        "Shape__Length"
+      ],
+      "field_name_mapping": {
+        "Shape__Area": "Shape__Are",
+        "Shape__Length": "Shape__Len"
+      },
+      "geometry_type": {
+        "Polygon": 81,
+        "MultiPolygon": 4
+      },
+      "geojson_path": "data\\raw\\moose\\Moose_Summer_Range.geojson",
+      "shapefile_path": "data\\raw\\moose\\Moose_Summer_Range\\Moose_Summer_Range.shp"
+    },
+    {
+      "layer_id": 85,
+      "layer_name": "Moose_Migration_Corridors",
+      "feature_count": 9,
+      "crs": "EPSG:4326",
+      "bounds": [
+        -109.05002833902,
+        37.1087621226631,
+        -104.761693882839,
+        41.0034577021289
+      ],
+      "fields": [
+        "geometry",
+        "FID",
+        "ACTIVITYCO",
+        "INPUT_DATE",
+        "EDIT_DATE",
+        "GlobalID",
+        "Shape__Area",
+        "Shape__Length"
+      ],
+      "field_name_mapping": {
+        "Shape__Area": "Shape__Are",
+        "Shape__Length": "Shape__Len"
+      },
+      "geometry_type": {
+        "Polygon": 9
+      },
+      "geojson_path": "data\\raw\\moose\\Moose_Migration_Corridors.geojson",
+      "shapefile_path": "data\\raw\\moose\\Moose_Migration_Corridors\\Moose_Migration_Corridors.shp"
+    }
+  ]
+}
