@@ -65,26 +65,11 @@
         
         .leaflet-popup-content { font-family: 'Segoe UI', sans-serif; line-height: 1.4; min-width: 200px; }
         .species-list { margin-top: 8px; padding: 5px; background: #f4f7f6; border-radius: 4px; border: 1px solid #eee; }
-        
         .available { color: #27ae60; font-weight: bold; }
         .unavailable { color: #e74c3c; font-weight: bold; }
 
         .gmu-label { background: transparent; border: none; box-shadow: none; font-weight: bold; color: #000; font-size: 11px; text-shadow: 1px 1px 2px white; pointer-events: none; }
         .land-label { background: transparent; border: none; box-shadow: none; color: #2c3e50; font-size: 10px; font-style: italic; pointer-events: none; }
-        
-        /* UPDATED COUNTY LABEL STYLE */
-        .county-label { 
-            background: transparent !important; 
-            border: none !important; 
-            box-shadow: none !important; 
-            color: #c0392b !important; 
-            font-size: 11px !important; 
-            font-weight: 900 !important; 
-            text-transform: uppercase; 
-            text-shadow: 2px 2px 3px white, -2px -2px 3px white, 2px -2px 3px white, -2px 2px 3px white;
-            white-space: nowrap;
-            pointer-events: none; 
-        }
     </style>
 </head>
 <body>
@@ -118,19 +103,21 @@
 
     var map = L.map('map', { center: [39.0, -105.5], zoom: 7, layers: [osm] });
 
-    /* PANES */
+    /* CREATE PANES FOR LAYER DEPTH */
     map.createPane('countyPane'); map.getPane('countyPane').style.zIndex = 350;
+    map.createPane('migrationPane'); map.getPane('migrationPane').style.zIndex = 375; // UNDER GMU
     map.createPane('gmuPane'); map.getPane('gmuPane').style.zIndex = 400;
     map.createPane('federalPane'); map.getPane('federalPane').style.zIndex = 475;
     map.createPane('swaPane'); map.getPane('swaPane').style.zIndex = 500;
     map.createPane('labelPane'); map.getPane('labelPane').style.zIndex = 650;
 
     var countyLayer = L.layerGroup(); 
+    var migrationLayer = L.layerGroup().addTo(map); 
     var fedLayer = L.layerGroup().addTo(map);
     var gmuLayer = L.layerGroup().addTo(map);
     var swaLayer = L.layerGroup().addTo(map);
 
-    var gmuGeojson, swaGeojson, countyGeojson, fedGeojson;
+    var gmuGeojson, swaGeojson, countyGeojson, fedGeojson, migrationGeojson;
     var currentSelectedLayer = null;
     var locationMarker = null;
 
@@ -140,6 +127,7 @@
                      {
                         "SWAs & Parks": swaLayer, 
                         "GMU Boundaries": gmuLayer,
+                        "Elk Migration": migrationLayer,
                         "County": countyLayer,
                         "Federal Lands": fedLayer
                      }, 
@@ -210,38 +198,41 @@
                 </div><div class="species-list"><div style="display: grid; grid-template-columns: 1fr 1fr; font-size: 0.9em;">${speciesHtml}</div></div>`;
     }
 
-    /* 1. COUNTY DATA - CENTERED LABELS */
+    /* 1. COUNTY DATA */
     fetch('data/processed/county_co_CO.geojson').then(res => res.json()).then(data => {
         countyGeojson = L.geoJSON(data, {
             pane: 'countyPane',
             style: { color: "#e74c3c", weight: 1.5, fillOpacity: 0 },
             onEachFeature: function(f, l) {
-                var rawName = f.properties.COUNTY || f.properties.name || f.properties.NAME || "";
-                var cleanName = rawName.replace(/County/gi, "").trim();
-                
-                // CALCULATE CENTROID: Forcing the label to the geometric center
-                var center;
+                var name = f.properties.COUNTY || f.properties.name || f.properties.NAME || "";
+                var cleanName = name.replace(/County/gi, "").trim();
                 if (l.getBounds) {
-                    center = l.getBounds().getCenter();
+                    var center = l.getBounds().getCenter();
+                    L.marker(center, { opacity: 0, interactive: false })
+                     .bindTooltip(cleanName, { permanent: true, direction: 'center', className: 'county-label', pane: 'labelPane' })
+                     .addTo(countyLayer);
                 }
-
-                if (center) {
-                    // Create an invisible marker at the center to hold the permanent label
-                    var labelMarker = L.marker(center, { opacity: 0, interactive: false });
-                    labelMarker.bindTooltip(cleanName, { 
-                        permanent: true, 
-                        direction: 'center', 
-                        className: 'county-label',
-                        pane: 'labelPane'
-                    }).addTo(countyLayer);
-                }
-                
-                l.on('click', function(e) { L.DomEvent.stopPropagation(e); });
             }
         }).addTo(countyLayer);
     });
 
-    /* 2. FEDERAL LANDS */
+    /* 2. ELK MIGRATION - Under GMU, Dark Blue Transparent */
+    fetch('data/processed/elk_migration.geojson').then(res => res.json()).then(data => {
+        migrationGeojson = L.geoJSON(data, {
+            pane: 'migrationPane',
+            style: { 
+                color: 'transparent', // No border line
+                fillColor: "#2c3e50", // Dark slate blue
+                fillOpacity: 0.4,     // 40% transparent
+                weight: 0 
+            },
+            onEachFeature: function(f, l) {
+                l.bindPopup("<b>Elk Migration Area</b>");
+            }
+        }).addTo(migrationLayer);
+    });
+
+    /* 3. FEDERAL LANDS */
     function getFedStyle(agency) {
         switch (agency) {
             case 'USFS': return { color: '#27ae60', opacity: 0.4 }; 
@@ -262,7 +253,7 @@
         }).addTo(fedLayer);
     });
 
-    /* 3. GMU DATA */
+    /* 4. GMU DATA */
     fetch('data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
         gmuGeojson = L.geoJSON(data, {
             pane: 'gmuPane',
@@ -283,7 +274,7 @@
             gmuGeojson.eachLayer(l => {
                 if(l.feature.properties.GMUID.toString() === id.toString()) {
                     currentSelectedLayer = l; clearAllHovers();
-                    map.fitBounds(l.getBounds()); l.openPopup(); l.bringToFront();
+                    map.fitBounds(l.getBounds()); l.openPopup();
                 }
             });
         }
@@ -291,7 +282,7 @@
         document.getElementById('search-btn').onclick = () => zoomTo(document.getElementById('gmu-search-input').value);
     });
 
-    /* 4. SWAs & PARKS */
+    /* 5. SWAs & PARKS */
     fetch('data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
         swaGeojson = L.geoJSON(data, {
             pane: 'swaPane',
@@ -319,6 +310,7 @@
         var body = document.getElementById('legend-body');
         var html = '';
         if (map.hasLayer(gmuLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:rgba(0,0,0,0.1)"></div>GMU Boundaries</div>`;
+        if (map.hasLayer(migrationLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#2c3e50; opacity:0.4; border:none;"></div>Elk Migration</div>`;
         if (map.hasLayer(countyLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#e74c3c; height:2px; border:none;"></div>County Lines</div>`;
         if (map.hasLayer(fedLayer)) {
             html += `<b style="display:block;margin-top:5px">Federal Agencies</b>
