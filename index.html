@@ -22,11 +22,13 @@
             border: 1px solid rgba(0,0,0,0.1);
         }
 
+        /* SIDEBAR CONTAINER: Positions the search and title box top-left */
         .map-title {
             position: absolute; top: 10px; left: 50px; z-index: 1000;
             padding: 15px; min-width: 250px;
         }
 
+        /* LAYER CONTROL: Customizing the Leaflet layer switcher with high-contrast colors */
         .leaflet-control-layers-expanded {
             background: #2c3e50 !important;
             color: white !important;
@@ -34,6 +36,7 @@
             padding: 12px !important;
         }
 
+        /* GEOLOCATION BUTTON: Styles the crosshair icon in the bottom-left */
         .locate-control {
             width: 36px; height: 36px;
             display: flex; align-items: center; justify-content: center;
@@ -42,15 +45,18 @@
         }
         .locate-control:hover { background: #f4f4f4; color: #3498db; }
 
+        /* SEARCH UI: Layout for the GMU search box and dropdown */
         .filter-group { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
         .search-row { display: flex; gap: 5px; }
         input, select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-family: inherit; }
         input { flex-grow: 1; }
         
+        /* ACTION BUTTONS: Modernized search button styling */
         button { padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
         #search-btn { background: #e67e22; color: white; }
         #search-btn:hover { background: #d35400; transform: translateY(-1px); }
 
+        /* BROCHURE DOWNLOAD: Styling for the persistent PDF link */
         .download-box { margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
         .download-link {
             display: flex; align-items: center; justify-content: center;
@@ -60,6 +66,7 @@
         }
         .download-link:hover { background: #219150; }
         
+        /* LEGEND WIDGET: Logic for the collapsible legend in the bottom-right */
         .legend-widget { min-width: 180px; overflow: hidden; }
         .legend-header { background: #2c3e50; color: white; padding: 10px 15px; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; }
         .legend-content { padding: 12px; font-size: 0.9em; }
@@ -67,11 +74,13 @@
         .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
         .legend-box { width: 16px; height: 16px; margin-right: 10px; border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; }
         
+        /* POPUP & SPECIES LIST: High-contrast status colors (Green for available, Red for unavailable) */
         .leaflet-popup-content { font-family: 'Segoe UI', sans-serif; line-height: 1.4; min-width: 200px; }
         .species-list { margin-top: 8px; padding: 5px; background: #f4f7f6; border-radius: 4px; border: 1px solid #eee; }
         .available { color: #27ae60; font-weight: bold; }
         .unavailable { color: #e74c3c; font-weight: bold; }
 
+        /* LABELS: Transparent tooltips for Unit numbers and Park names */
         .gmu-label { background: transparent; border: none; box-shadow: none; font-weight: bold; color: #000; font-size: 11px; text-shadow: 1px 1px 2px white; pointer-events: none; }
         .land-label { background: transparent; border: none; box-shadow: none; color: #2c3e50; font-size: 10px; font-style: italic; pointer-events: none; }
     </style>
@@ -105,19 +114,14 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+    /* MAP INITIALIZATION: Defining the base tile layers (OSM and Satellite) */
     var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' });
     var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
 
+    /* CENTER POINT: Set to Colorado coordinates [39.0, -105.5] */
     var map = L.map('map', { center: [39.0, -105.5], zoom: 7, layers: [osm] });
 
-    /* LAYER REORDERING LOGIC: 
-       We create a custom pane for SWAs with a higher z-index (500) 
-       so they always appear above GMU Boundaries (standard z-index is 400).
-    */
-    map.createPane('swaPane');
-    map.getPane('swaPane').style.zIndex = 500;
-    map.getPane('swaPane').style.pointerEvents = 'none'; // Allows clicks to pass through to units if needed
-
+    /* LAYER GROUPS: Used to toggle data on/off without reloading files */
     var gmuLayer = L.layerGroup().addTo(map);
     var swaLayer = L.layerGroup().addTo(map);
 
@@ -125,13 +129,15 @@
     var currentSelectedLayer = null;
     var locationMarker = null;
 
+    /* HIGHLIGHT STYLE: Defines the "Cyan Glow" border-only effect used for hover and selection */
     var activeStyle = { color: "#00FFFF", weight: 6, fillOpacity: 0.0 };
 
-    /* USER CONTROL: Layer reordering is handled by the order of toggles here */
+    /* LAYER CONTROL: Standard Leaflet widget for switching base maps and overlays */
     L.control.layers({"Street View": osm, "Satellite View": satellite}, 
-                     {"SWAs & Parks": swaLayer, "GMU Boundaries": gmuLayer}, 
+                     {"GMU Boundaries": gmuLayer, "SWAs & Parks": swaLayer}, 
                      { collapsed: false }).addTo(map);
 
+    /* CUSTOM LOCATE CONTROL: Extends Leaflet UI to add the crosshair button in bottom-left */
     var LocateControl = L.Control.extend({
         options: { position: 'bottomleft' },
         onAdd: function (map) {
@@ -147,6 +153,7 @@
     });
     map.addControl(new LocateControl());
 
+    /* GEOLOCATION SUCCESS: Drops a blue circle marker when the user's location is found */
     map.on('locationfound', function(e) {
         if (locationMarker) { map.removeLayer(locationMarker); }
         locationMarker = L.circleMarker(e.latlng, {
@@ -154,6 +161,7 @@
         }).addTo(map);
     });
 
+    /* RESET HOVERS: Clears all highlights from the map, but keeps the selected unit highlighted */
     function clearAllHovers() {
         if (gmuGeojson) gmuGeojson.resetStyle();
         if (swaGeojson) swaGeojson.resetStyle();
@@ -162,6 +170,7 @@
         }
     }
 
+    /* INTERACTION LOGIC: Standardizes how the map reacts to Mouseover, Mouseout, and Clicks */
     function setupInteractions(layer, geojsonParent, popupContent) {
         layer.bindPopup(popupContent);
         layer.on({
@@ -183,6 +192,7 @@
         });
     }
 
+    /* DATA FORMATTER (GMU): Scrubs raw GeoJSON data to create the Available/Unavailable list */
     function getHuntingPopup(props, title) {
         var subtitle = (props.LABEL && props.LABEL !== "undefined") ? props.LABEL : "Hunting Management Unit";
         var speciesData = [
@@ -192,6 +202,7 @@
         ];
         var speciesHtml = speciesData.map(s => {
             var valStr = s.val ? String(s.val).trim() : "";
+            /* CLEANING LOGIC: Checks if species value is empty, 0, or code 99 */
             var isAvailable = valStr.length >= 2 && valStr !== "0" && !valStr.includes("99");
             return `<div class="${isAvailable ? 'available' : 'unavailable'}">${isAvailable ? '✓' : '✗'} ${s.name}</div>`;
         }).join('');
@@ -201,6 +212,7 @@
                 </div><div class="species-list"><div style="display: grid; grid-template-columns: 1fr 1fr; font-size: 0.9em;">${speciesHtml}</div></div>`;
     }
 
+    /* DATA FORMATTER (SWA): Simple popup for State Wildlife Areas and State Parks */
     function getSimplePopup(title, typeLabel) {
         return `<div style="padding: 5px;">
                     <b style="font-size: 1.1em; color: #2c3e50;">${title}</b><br>
@@ -208,7 +220,7 @@
                 </div>`;
     }
 
-    /* FETCH GMU DATA */
+    /* FETCH GMU DATA: Loads the Game Management Unit GeoJSON and populates the search dropdown */
     fetch('data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
         gmuGeojson = L.geoJSON(data, {
             style: { color: "#000", weight: 1, fillOpacity: 0.05 },
@@ -218,12 +230,14 @@
             }
         }).addTo(gmuLayer);
 
+        /* SEARCH BUILDER: Sorts units numerically and adds them to the select menu */
         var gmuSelect = document.getElementById('gmu-select');
         data.features.sort((a,b) => a.properties.GMUID - b.properties.GMUID).forEach(f => {
             var opt = document.createElement('option'); opt.value = f.properties.GMUID; opt.innerHTML = "Unit " + f.properties.GMUID;
             gmuSelect.appendChild(opt);
         });
 
+        /* ZOOM LOGIC: Function to fly to a unit when searched or selected */
         function zoomTo(id) {
             gmuGeojson.eachLayer(l => {
                 if(l.feature.properties.GMUID.toString() === id.toString()) {
@@ -237,10 +251,9 @@
         document.getElementById('gmu-search-input').onkeypress = (e) => { if(e.key==='Enter') zoomTo(e.target.value); };
     });
 
-    /* FETCH SWA DATA: Assigned to 'swaPane' to stay on top */
+    /* FETCH SWA DATA: Loads State Lands and styles them Yellow (SWA) or Red (State Park) */
     fetch('data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
         swaGeojson = L.geoJSON(data, {
-            pane: 'swaPane',
             style: function(f) {
                 var isPark = f.properties.PropType === "SP";
                 return { color: "#333", weight: 0.8, fillColor: isPark ? "#ff0000" : "#ffff00", fillOpacity: 0.7 };
@@ -252,6 +265,7 @@
         }).addTo(swaLayer);
     });
 
+    /* LEGEND GENERATION: Builds the dynamic legend at the bottom right */
     var legendWidget = L.control({position: 'bottomright'});
     legendWidget.onAdd = function() {
         var div = L.DomUtil.create('div', 'legend-widget');
@@ -260,24 +274,26 @@
     };
     legendWidget.addTo(map);
 
-    /* LEGEND SYMBOLIZER: Updated with spelled-out SWA names */
+    /* LEGEND SYMBOLIZER: Updates legend items based on which layers are currently visible */
     function updateLegend() {
         var body = document.getElementById('legend-body');
         var html = '';
         if (map.hasLayer(gmuLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:rgba(0,0,0,0.1)"></div>GMU Boundaries</div>`;
         if (map.hasLayer(swaLayer)) {
             html += `<b style="display:block;margin-top:5px">State Lands</b>
-                     <div class="legend-item"><div class="legend-box" style="background:#ffff00"></div>State Wildlife Area (SWA)</div>
+                     <div class="legend-item"><div class="legend-box" style="background:#ffff00"></div>SWA</div>
                      <div class="legend-item"><div class="legend-box" style="background:#ff0000"></div>State Park</div>`;
         }
         body.innerHTML = html || 'No active layers';
     }
 
+    /* COLLAPSE LOGIC: Allows user to hide the legend to see more map area */
     document.getElementById('legend-toggle').onclick = function() {
         document.getElementById('legend-body').classList.toggle('collapsed');
         this.querySelector('span').innerHTML = document.getElementById('legend-body').classList.contains('collapsed') ? '▲' : '▼';
     };
 
+    /* EVENT LISTENERS: Triggers legend updates whenever layers are toggled */
     map.on('overlayadd overlayremove', updateLegend);
     updateLegend();
     map.on('click', function() { currentSelectedLayer = null; clearAllHovers(); });
