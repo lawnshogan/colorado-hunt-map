@@ -101,7 +101,7 @@
         <select id="gmu-select"><option value="">-- Select Unit --</option></select>
     </div>
     <div class="download-box">
-        <a href="../docs/brochure_2026.pdf" target="_blank" class="download-link">
+        <a href="docs/brochure_2026.pdf" target="_blank" class="download-link">
             <span>📄 View 2026 Brochure</span>
         </a>
     </div>
@@ -119,14 +119,14 @@
 
     /* CREATE PANES FOR LAYER DEPTH */
     map.createPane('countyPane'); map.getPane('countyPane').style.zIndex = 350;
-    map.createPane('migrationPane'); map.getPane('migrationPane').style.zIndex = 375; 
+    map.createPane('migrationPane'); map.getPane('migrationPane').style.zIndex = 375; // UNDER GMU
     map.createPane('gmuPane'); map.getPane('gmuPane').style.zIndex = 400;
     map.createPane('federalPane'); map.getPane('federalPane').style.zIndex = 475;
     map.createPane('swaPane'); map.getPane('swaPane').style.zIndex = 500;
     map.createPane('labelPane'); map.getPane('labelPane').style.zIndex = 650;
 
     var countyLayer = L.layerGroup(); 
-    var migrationLayer = L.layerGroup().addTo(map); 
+    var migrationLayer = L.layerGroup().addTo(map); // Default On
     var fedLayer = L.layerGroup().addTo(map);
     var gmuLayer = L.layerGroup().addTo(map);
     var swaLayer = L.layerGroup().addTo(map);
@@ -212,8 +212,8 @@
                 </div><div class="species-list"><div style="display: grid; grid-template-columns: 1fr 1fr; font-size: 0.9em;">${speciesHtml}</div></div>`;
     }
 
-    /* 1. COUNTY DATA - PATH FIXED */
-    fetch('../data/processed/county_co_CO.geojson').then(res => res.json()).then(data => {
+    /* 1. COUNTY DATA */
+    fetch('data/processed/county_co_CO.geojson').then(res => res.json()).then(data => {
         countyGeojson = L.geoJSON(data, {
             pane: 'countyPane',
             style: { color: "#e74c3c", weight: 1.5, fillOpacity: 0 },
@@ -226,13 +226,12 @@
                      .bindTooltip(cleanName, { permanent: true, direction: 'center', className: 'county-label', pane: 'labelPane' })
                      .addTo(countyLayer);
                 }
-                l.on('click', function(e) { L.DomEvent.stopPropagation(e); });
             }
         }).addTo(countyLayer);
     });
 
-    /* 2. ELK MIGRATION - PATH FIXED */
-    fetch('../data/processed/elk_migration.geojson').then(res => res.json()).then(data => {
+    /* 2. ELK MIGRATION - Under GMU, Dark Blue Transparent */
+    fetch('data/processed/elk_migration.geojson').then(res => res.json()).then(data => {
         migrationGeojson = L.geoJSON(data, {
             pane: 'migrationPane',
             style: { 
@@ -247,7 +246,7 @@
         }).addTo(migrationLayer);
     });
 
-    /* 3. FEDERAL LANDS - PATH FIXED */
+    /* 3. FEDERAL LANDS */
     function getFedStyle(agency) {
         switch (agency) {
             case 'USFS': return { color: '#27ae60', opacity: 0.4 }; 
@@ -257,7 +256,7 @@
         }
     }
 
-    fetch('../data/processed/surface_management_agency_CO.geojson').then(res => res.json()).then(data => {
+    fetch('data/processed/surface_management_agency_CO.geojson').then(res => res.json()).then(data => {
         fedGeojson = L.geoJSON(data, {
             pane: 'federalPane',
             interactive: false,
@@ -268,8 +267,8 @@
         }).addTo(fedLayer);
     });
 
-    /* 4. GMU DATA - PATH FIXED */
-    fetch('../data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
+    /* 4. GMU DATA */
+    fetch('data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
         gmuGeojson = L.geoJSON(data, {
             pane: 'gmuPane',
             style: { color: "#000", weight: 1, fillOpacity: 0.05 },
@@ -297,8 +296,8 @@
         document.getElementById('search-btn').onclick = () => zoomTo(document.getElementById('gmu-search-input').value);
     });
 
-    /* 5. SWAs & PARKS - PATH FIXED */
-    fetch('../data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
+    /* 5. SWAs & PARKS */
+    fetch('data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
         swaGeojson = L.geoJSON(data, {
             pane: 'swaPane',
             style: function(f) {
