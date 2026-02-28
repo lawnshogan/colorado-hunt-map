@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><MD_Metadata xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:xalan="http://xml.apache.org/xalan" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns="http://www.isotc211.org/2005/gmd">
+    <characterSet>
+        <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" codeSpace="ISOTC211/19115">utf8</MD_CharacterSetCode>
+    </characterSet>
+    <hierarchyLevel>
+        <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset" codeSpace="ISOTC211/19115">dataset</MD_ScopeCode>
+    </hierarchyLevel>
+    <hierarchyLevelName>
+        <gco:CharacterString>dataset</gco:CharacterString>
+    </hierarchyLevelName>
+    <contact gco:nilReason="missing"/>
+    <dateStamp gco:nilReason="missing"/>
+    <metadataStandardName>
+        <gco:CharacterString>ISO 19139 Geographic Information - Metadata - Implementation Specification</gco:CharacterString>
+    </metadataStandardName>
+    <metadataStandardVersion>
+        <gco:CharacterString>2007</gco:CharacterString>
+    </metadataStandardVersion>
+    <identificationInfo>
+        <MD_DataIdentification>
+            <citation gco:nilReason="missing"/>
+            <abstract>
+                <gco:CharacterString>This is an ArcGIS Online web service updated by the Colorado Parks and Wildlife GIS Unit for distributing Colorado state parks and terrestrial wildlife species GIS data compiled in support of ECMC and SB181 for public distribution. This file was updated on December 23, 2025.</gco:CharacterString>
+            </abstract>
+            <purpose>
+                <gco:CharacterString>CPW High Priority Habitat (HPH) data. This data was compiled for the Colorado Energy &amp; Carbon Management Commission in response to SB181. These layers may contain interim updates by CPW and may not represent features approved by the Commission.</gco:CharacterString>
+            </purpose>
+            <credit>
+                <gco:CharacterString>Colorado Parks and Wildlife &amp; Colorado Energy &amp; Carbon Management Commission</gco:CharacterString>
+            </credit>
+            <descriptiveKeywords>
+                <MD_Keywords>
+                    <keyword>
+                        <gco:CharacterString>Wildlife</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>HPH</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Colorado</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>CPW</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>SB181</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>ECMC</gco:CharacterString>
+                    </keyword>
+                    <keyword>
+                        <gco:CharacterString>Terrestrial</gco:CharacterString>
+                    </keyword>
+                </MD_Keywords>
+            </descriptiveKeywords>
+            <resourceConstraints>
+                <MD_Constraints>
+                    <useLimitation>
+                        <gco:CharacterString>This wildlife distribution map is a product and property of Colorado Parks and Wildlife, a division of the Colorado Department of Natural Resources. Care should be taken in interpreting these data. Written documents may accompany this map and should be referenced. The information portrayed on these maps should not replace field studies necessary for more localized planning efforts. The data are gathered at a variety of scales; discrepancies may become apparent at larger scales. The areas portrayed here are graphic representations of phenomena that are difficult to reduce to two dimensions. Animal distributions are fluid; animal populations and their habitats are dynamic. Due to the complexity of these features we have experienced instances where these web services do not completely draw all features on clients when accessed through the REST API. Care should be taken when evaluating these data through these services.</gco:CharacterString>
+                    </useLimitation>
+                </MD_Constraints>
+            </resourceConstraints>
+            <language gco:nilReason="missing"/>
+            <characterSet>
+                <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_CharacterSetCode" codeListValue="utf8" codeSpace="ISOTC211/19115">utf8</MD_CharacterSetCode>
+            </characterSet>
+        </MD_DataIdentification>
+    </identificationInfo>
+</MD_Metadata>
