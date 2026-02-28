@@ -122,7 +122,6 @@
     var currentSelectedLayer = null;
     var locationMarker = null;
 
-    // Both Highlight and Selection now use 0% fill opacity
     var activeStyle = { color: "#00FFFF", weight: 6, fillOpacity: 0.0 };
 
     L.control.layers({"Street View": osm, "Satellite View": satellite}, 
@@ -154,7 +153,6 @@
     function clearAllHovers() {
         if (gmuGeojson) gmuGeojson.resetStyle();
         if (swaGeojson) swaGeojson.resetStyle();
-        // Re-apply the stroke-only style to the clicked unit so it stays highlighted
         if (currentSelectedLayer) {
             currentSelectedLayer.setStyle(activeStyle);
         }
@@ -206,7 +204,8 @@
                 </div>`;
     }
 
-    fetch('../data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
+    // PATHS UPDATED TO ROOT
+    fetch('data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
         gmuGeojson = L.geoJSON(data, {
             style: { color: "#000", weight: 1, fillOpacity: 0.05 },
             onEachFeature: function(f, l) {
@@ -234,7 +233,8 @@
         document.getElementById('gmu-search-input').onkeypress = (e) => { if(e.key==='Enter') zoomTo(e.target.value); };
     });
 
-    fetch('../data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
+    // PATHS UPDATED TO ROOT
+    fetch('data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
         swaGeojson = L.geoJSON(data, {
             style: function(f) {
                 var isPark = f.properties.PropType === "SP";
