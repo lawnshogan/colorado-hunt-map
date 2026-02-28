@@ -63,7 +63,7 @@
         .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
         .legend-box { width: 16px; height: 16px; margin-right: 10px; border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; }
         
-        .leaflet-popup-content { font-family: 'Segoe UI', sans-serif; line-height: 1.4; min-width: 220px; }
+        .leaflet-popup-content { font-family: 'Segoe UI', sans-serif; line-height: 1.4; min-width: 200px; }
         .species-list { margin-top: 8px; padding: 5px; background: #f4f7f6; border-radius: 4px; border: 1px solid #eee; }
         
         .available { color: #27ae60; font-weight: bold; }
@@ -212,7 +212,7 @@
                 </div><div class="species-list"><div style="display: grid; grid-template-columns: 1fr 1fr; font-size: 0.9em;">${speciesHtml}</div></div>`;
     }
 
-    /* 1. COUNTY DATA */
+    /* 1. COUNTY DATA - PATH FIXED */
     fetch('../data/processed/county_co_CO.geojson').then(res => res.json()).then(data => {
         countyGeojson = L.geoJSON(data, {
             pane: 'countyPane',
@@ -231,28 +231,7 @@
         }).addTo(countyLayer);
     });
 
-    /* 2. ELK MIGRATION - WITH ENHANCED INSIGHT ENGINE */
-    const migrationInsights = {
-        "Migration Corridor": {
-            timing: "April-May (Spring) | Oct-Nov (Fall)",
-            tip: "Focus on 'pinch points' where valleys narrow. Fall migration is triggered by snow depth reaching ~12 inches."
-        },
-        "Winter Range": {
-            timing: "December - March",
-            tip: "South-facing slopes with sagebrush. Essential for survival; avoid excessive pressure to prevent animal stress."
-        },
-        "Severe Winter Range": {
-            timing: "Late Season Peak",
-            tip: "Critical survival habitat. During high snow years, hunt these fringes early in the 4th rifle season."
-        },
-        "Summer Range": {
-            timing: "June - September",
-            tip: "High altitude basins and timberline. Look for proximity to north-facing timber for bedding."
-        }
-    };
-
-    
-
+    /* 2. ELK MIGRATION - PATH FIXED */
     fetch('../data/processed/elk_migration.geojson').then(res => res.json()).then(data => {
         migrationGeojson = L.geoJSON(data, {
             pane: 'migrationPane',
@@ -263,30 +242,12 @@
                 weight: 0 
             },
             onEachFeature: function(f, l) {
-                // Determine description based on attribute data
-                const activityType = f.properties.ACTIVITY || "Migration Corridor";
-                const insight = migrationInsights[activityType] || migrationInsights["Migration Corridor"];
-
-                const popupContent = `
-                    <div style="border-bottom: 2px solid #3498db; margin-bottom: 8px; padding-bottom: 4px;">
-                        <b style="font-size: 1.1em; color: #2c3e50;">Elk Migration Analysis</b><br>
-                        <span style="color: #3498db; font-weight: bold; font-size: 0.9em;">${activityType}</span>
-                    </div>
-                    <div style="font-size: 0.9em; line-height: 1.4;">
-                        <b style="color: #e67e22;">Peak Activity:</b> ${insight.timing}<br><br>
-                        <b style="color: #27ae60;">Scouting Insight:</b><br>
-                        <span style="font-style: italic; color: #7f8c8d;">"${insight.tip}"</span>
-                    </div>
-                    <div style="margin-top: 10px; padding-top: 5px; border-top: 1px solid #eee; font-size: 0.8em; color: #bdc3c7;">
-                        Source: CPW Species Activity Data
-                    </div>
-                `;
-                l.bindPopup(popupContent);
+                l.bindPopup("<b>Elk Migration Area</b>");
             }
         }).addTo(migrationLayer);
     });
 
-    /* 3. FEDERAL LANDS */
+    /* 3. FEDERAL LANDS - PATH FIXED */
     function getFedStyle(agency) {
         switch (agency) {
             case 'USFS': return { color: '#27ae60', opacity: 0.4 }; 
@@ -307,7 +268,7 @@
         }).addTo(fedLayer);
     });
 
-    /* 4. GMU DATA */
+    /* 4. GMU DATA - PATH FIXED */
     fetch('../data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
         gmuGeojson = L.geoJSON(data, {
             pane: 'gmuPane',
@@ -336,7 +297,7 @@
         document.getElementById('search-btn').onclick = () => zoomTo(document.getElementById('gmu-search-input').value);
     });
 
-    /* 5. SWAs & PARKS */
+    /* 5. SWAs & PARKS - PATH FIXED */
     fetch('../data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
         swaGeojson = L.geoJSON(data, {
             pane: 'swaPane',
