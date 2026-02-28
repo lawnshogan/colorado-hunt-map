@@ -7,7 +7,6 @@ def setup_directories():
         "data/raw",
         "data/processed",
         "scripts",
-        "map",
         "docs"
     ]
     
