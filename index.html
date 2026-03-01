@@ -54,7 +54,6 @@
             padding: 10px; border-radius: 4px; font-size: 0.85em;
             font-weight: bold; transition: background 0.2s;
         }
-        .download-link:hover { background: #219150; }
         
         .legend-widget { min-width: 180px; overflow: hidden; }
         .legend-header { background: #2c3e50; color: white; padding: 10px 15px; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; }
@@ -69,21 +68,11 @@
         .available { color: #27ae60; font-weight: bold; }
         .unavailable { color: #e74c3c; font-weight: bold; }
 
+        /* MOOSE STYLING */
+        .moose-popup-header { border-bottom: 2px solid #8e44ad; margin-bottom: 8px; padding-bottom: 4px; }
+        .quality-excellent { color: #8e44ad; font-weight: 900; }
+        .quality-high { color: #2980b9; font-weight: 900; }
         .gmu-label { background: transparent; border: none; box-shadow: none; font-weight: bold; color: #000; font-size: 11px; text-shadow: 1px 1px 2px white; pointer-events: none; }
-        .land-label { background: transparent; border: none; box-shadow: none; color: #2c3e50; font-size: 10px; font-style: italic; pointer-events: none; }
-        
-        .county-label { 
-            background: transparent !important; 
-            border: none !important; 
-            box-shadow: none !important; 
-            color: #c0392b !important; 
-            font-size: 11px !important; 
-            font-weight: 900 !important; 
-            text-transform: uppercase; 
-            text-shadow: 2px 2px 3px white, -2px -2px 3px white, 2px -2px 3px white, -2px 2px 3px white;
-            white-space: nowrap;
-            pointer-events: none; 
-        }
     </style>
 </head>
 <body>
@@ -93,7 +82,7 @@
     <div class="filter-group">
         <label style="font-weight: bold; font-size: 0.8em; color: #7f8c8d;">SEARCH GMU:</label>
         <div class="search-row">
-            <input type="text" id="gmu-search-input" placeholder="e.g. 391">
+            <input type="text" id="gmu-search-input" placeholder="e.g. 6">
             <button id="search-btn">Go</button>
         </div>
     </div>
@@ -119,134 +108,90 @@
 
     /* CREATE PANES FOR LAYER DEPTH */
     map.createPane('countyPane'); map.getPane('countyPane').style.zIndex = 350;
-    map.createPane('migrationPane'); map.getPane('migrationPane').style.zIndex = 375; // UNDER GMU
-    map.createPane('gmuPane'); map.getPane('gmuPane').style.zIndex = 400;
-    map.createPane('federalPane'); map.getPane('federalPane').style.zIndex = 475;
-    map.createPane('swaPane'); map.getPane('swaPane').style.zIndex = 500;
+    map.createPane('federalPane'); map.getPane('federalPane').style.zIndex = 425;
+    map.createPane('gmuPane'); map.getPane('gmuPane').style.zIndex = 450;
+    map.createPane('enrichedMoosePane'); map.getPane('enrichedMoosePane').style.zIndex = 500; 
+    map.createPane('swaPane'); map.getPane('swaPane').style.zIndex = 550;
     map.createPane('labelPane'); map.getPane('labelPane').style.zIndex = 650;
 
     var countyLayer = L.layerGroup(); 
-    var migrationLayer = L.layerGroup().addTo(map); // Default On
     var fedLayer = L.layerGroup().addTo(map);
     var gmuLayer = L.layerGroup().addTo(map);
     var swaLayer = L.layerGroup().addTo(map);
+    var enrichedMooseLayer = L.layerGroup().addTo(map);
 
-    var gmuGeojson, swaGeojson, countyGeojson, fedGeojson, migrationGeojson;
-    var currentSelectedLayer = null;
-    var locationMarker = null;
+    // Moose Specific Layer Groups
+    var mooseSummerLayer = L.layerGroup();
+    var mooseWinterLayer = L.layerGroup();
+    var mooseCorridorLayer = L.layerGroup();
 
-    var activeStyle = { color: "#00FFFF", weight: 6, fillOpacity: 0.0 };
+    var gmuGeojson, swaGeojson, countyGeojson, fedGeojson, enrichedMooseGeojson;
+
+    /* 1. ENRICHED MOOSE HABITAT (Hero Layer) */
+    fetch('data/processed/moose_habitat_enriched.geojson').then(res => res.json()).then(data => {
+        enrichedMooseGeojson = L.geoJSON(data, {
+            pane: 'enrichedMoosePane',
+            style: function(f) {
+                var props = {};
+                for (var key in f.properties) { props[key.toLowerCase()] = f.properties[key]; }
+                var quality = props.habitat_quality || 'Good';
+                var color = quality === 'Excellent' ? "#8e44ad" : (quality === 'High' ? "#2980b9" : "#34495e");
+                return { color: color, weight: 2, fillColor: color, fillOpacity: 0.6 };
+            },
+            onEachFeature: function(f, l) {
+                var p = {};
+                for (var key in f.properties) { p[key.toLowerCase()] = f.properties[key]; }
+                var unitVal = p.gmu_code || p.gmuid || p.unit_id || 'N/A';
+                var dauVal = p.dau_code || p.dauid || 'CO-Moose';
+                var qualityVal = p.habitat_quality || 'General';
+                var qualityClass = qualityVal === 'Excellent' ? 'quality-excellent' : 'quality-high';
+                l.bindPopup(`<div class="moose-popup-header"><b style="font-size: 1.1em; color: #8e44ad;">Enriched Moose Habitat</b></div><b>Unit:</b> ${unitVal}<br><b>DAU:</b> ${dauVal}<br><b>Quality:</b> <span class="${qualityClass}">${qualityVal}</span>`);
+            }
+        }).addTo(enrichedMooseLayer);
+    });
+
+    /* ADDING RAW MOOSE DATASETS */
+    // Summer Range
+    fetch('data/raw/moose/Moose_Summer_Range.geojson').then(res => res.json()).then(data => {
+        L.geoJSON(data, { style: { color: "#27ae60", weight: 1, fillOpacity: 0.3 } }).addTo(mooseSummerLayer);
+    });
+    // Winter Range
+    fetch('data/raw/moose/Moose_Winter_Range.geojson').then(res => res.json()).then(data => {
+        L.geoJSON(data, { style: { color: "#2980b9", weight: 1, fillOpacity: 0.3 } }).addTo(mooseWinterLayer);
+    });
+    // Migration Corridors
+    fetch('data/raw/moose/Moose_Migration_Corridors.geojson').then(res => res.json()).then(data => {
+        L.geoJSON(data, { style: { color: "#f1c40f", weight: 3, opacity: 0.8 } }).addTo(mooseCorridorLayer);
+    });
 
     L.control.layers({"Street View": osm, "Satellite View": satellite}, 
                      {
-                        "SWAs & Parks": swaLayer, 
+                        "★ Enriched Moose Habitat": enrichedMooseLayer,
                         "GMU Boundaries": gmuLayer,
-                        "Elk Migration": migrationLayer,
+                        "SWAs & Parks": swaLayer, 
+                        "Federal Lands": fedLayer,
                         "County": countyLayer,
-                        "Federal Lands": fedLayer
+                        "Moose Summer Range": mooseSummerLayer,
+                        "Moose Winter Range": mooseWinterLayer,
+                        "Moose Corridors": mooseCorridorLayer
                      }, 
                      { collapsed: false }).addTo(map);
 
-    var LocateControl = L.Control.extend({
-        options: { position: 'bottomleft' },
-        onAdd: function (map) {
-            var container = L.DomUtil.create('div', 'custom-control locate-control');
-            container.innerHTML = '⌖'; 
-            container.onclick = function(e) {
-                L.DomEvent.stopPropagation(e);
-                map.locate({setView: true, maxZoom: 14});
-            };
-            return container;
-        }
-    });
-    map.addControl(new LocateControl());
-
-    map.on('locationfound', function(e) {
-        if (locationMarker) { map.removeLayer(locationMarker); }
-        locationMarker = L.circleMarker(e.latlng, {
-            radius: 8, fillColor: "#3498db", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
-        }).addTo(map);
-    });
-
-    function clearAllHovers() {
-        if (gmuGeojson) gmuGeojson.resetStyle();
-        if (swaGeojson) swaGeojson.resetStyle();
-        if (currentSelectedLayer) {
-            currentSelectedLayer.setStyle(activeStyle);
-        }
-    }
-
-    function setupInteractions(layer, popupContent) {
-        layer.bindPopup(popupContent);
-        layer.on({
-            mouseover: function() { 
-                clearAllHovers(); 
-                layer.setStyle(activeStyle);
-                layer.bringToFront();
-            },
-            mouseout: function() { clearAllHovers(); },
-            click: function(e) { 
-                L.DomEvent.stopPropagation(e); 
-                currentSelectedLayer = layer; 
-                clearAllHovers(); 
-                layer.setStyle(activeStyle);
-                layer.bringToFront(); 
-            }
-        });
-    }
-
-    function getHuntingPopup(props, title) {
-        var speciesData = [
-            { name: "Elk", val: props.ELKDAU }, { name: "Deer", val: props.DEERDAU },
-            { name: "Pronghorn", val: props.ANTDAU }, { name: "Moose", val: props.MOOSEDAU },
-            { name: "Bear", val: props.BEARDAU }, { name: "Lion", val: props.LIONDAU }
-        ];
-        var speciesHtml = speciesData.map(s => {
-            var valStr = s.val ? String(s.val).trim() : "";
-            var isAvailable = valStr.length >= 2 && valStr !== "0" && !valStr.includes("99");
-            return `<div class="${isAvailable ? 'available' : 'unavailable'}">${isAvailable ? '✓' : '✗'} ${s.name}</div>`;
-        }).join('');
-
-        return `<div style="border-bottom: 2px solid #e67e22; margin-bottom: 8px; padding-bottom: 4px;">
-                    <b style="font-size: 1.2em; color: #2c3e50;">${title}</b>
-                </div><div class="species-list"><div style="display: grid; grid-template-columns: 1fr 1fr; font-size: 0.9em;">${speciesHtml}</div></div>`;
-    }
-
-    /* 1. COUNTY DATA */
+    // 2. COUNTY
     fetch('data/processed/county_co_CO.geojson').then(res => res.json()).then(data => {
-        countyGeojson = L.geoJSON(data, {
-            pane: 'countyPane',
-            style: { color: "#e74c3c", weight: 1.5, fillOpacity: 0 },
+        countyGeojson = L.geoJSON(data, { pane: 'countyPane', style: { color: "#e74c3c", weight: 1.5, fillOpacity: 0 },
             onEachFeature: function(f, l) {
-                var name = f.properties.COUNTY || f.properties.name || f.properties.NAME || "";
+                var name = f.properties.COUNTY || f.properties.NAME || "";
                 var cleanName = name.replace(/County/gi, "").trim();
                 if (l.getBounds) {
                     var center = l.getBounds().getCenter();
-                    L.marker(center, { opacity: 0, interactive: false })
-                     .bindTooltip(cleanName, { permanent: true, direction: 'center', className: 'county-label', pane: 'labelPane' })
-                     .addTo(countyLayer);
+                    L.marker(center, { opacity: 0, interactive: false }).bindTooltip(cleanName, { permanent: true, direction: 'center', className: 'county-label', pane: 'labelPane' }).addTo(countyLayer);
                 }
             }
         }).addTo(countyLayer);
     });
 
-    /* 2. ELK MIGRATION - Under GMU, Dark Blue Transparent */
-    fetch('data/processed/elk_migration.geojson').then(res => res.json()).then(data => {
-        migrationGeojson = L.geoJSON(data, {
-            pane: 'migrationPane',
-            style: { 
-                color: 'transparent', 
-                fillColor: "#2c3e50", 
-                fillOpacity: 0.4, 
-                weight: 0 
-            },
-            onEachFeature: function(f, l) {
-                l.bindPopup("<b>Elk Migration Area</b>");
-            }
-        }).addTo(migrationLayer);
-    });
-
-    /* 3. FEDERAL LANDS */
+    // 4. FEDERAL
     function getFedStyle(agency) {
         switch (agency) {
             case 'USFS': return { color: '#27ae60', opacity: 0.4 }; 
@@ -255,63 +200,43 @@
             default:     return { color: 'transparent', opacity: 0 }; 
         }
     }
-
     fetch('data/processed/surface_management_agency_CO.geojson').then(res => res.json()).then(data => {
-        fedGeojson = L.geoJSON(data, {
-            pane: 'federalPane',
-            interactive: false,
-            style: function(f) {
-                var s = getFedStyle(f.properties.ADMIN_AGEN);
-                return { fillColor: s.color, fillOpacity: s.opacity, weight: 0 };
-            }
-        }).addTo(fedLayer);
+        fedGeojson = L.geoJSON(data, { pane: 'federalPane', interactive: false, style: function(f) { var s = getFedStyle(f.properties.ADMIN_AGEN); return { fillColor: s.color, fillOpacity: s.opacity, weight: 0 }; } }).addTo(fedLayer);
     });
 
-    /* 4. GMU DATA */
+    // 5. GMU
     fetch('data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
-        gmuGeojson = L.geoJSON(data, {
-            pane: 'gmuPane',
-            style: { color: "#000", weight: 1, fillOpacity: 0.05 },
+        gmuGeojson = L.geoJSON(data, { pane: 'gmuPane', style: { color: "#000", weight: 1, fillOpacity: 0.05 },
             onEachFeature: function(f, l) {
                 l.bindTooltip(f.properties.GMUID.toString(), { permanent: true, direction: 'center', className: 'gmu-label' });
-                setupInteractions(l, getHuntingPopup(f.properties, "Unit " + f.properties.GMUID));
+                var props = f.properties;
+                l.bindPopup(`<div class="moose-popup-header"><b>Unit ${props.GMUID}</b></div><div class="species-list">✓ Moose: ${props.MOOSEDAU}</div>`);
             }
         }).addTo(gmuLayer);
-
         var gmuSelect = document.getElementById('gmu-select');
         data.features.sort((a,b) => a.properties.GMUID - b.properties.GMUID).forEach(f => {
             var opt = document.createElement('option'); opt.value = f.properties.GMUID; opt.innerHTML = "Unit " + f.properties.GMUID;
             gmuSelect.appendChild(opt);
         });
-
         function zoomTo(id) {
-            gmuGeojson.eachLayer(l => {
-                if(l.feature.properties.GMUID.toString() === id.toString()) {
-                    currentSelectedLayer = l; clearAllHovers();
-                    map.fitBounds(l.getBounds()); l.openPopup();
-                }
-            });
+            gmuGeojson.eachLayer(l => { if(l.feature.properties.GMUID.toString() === id.toString()) { map.fitBounds(l.getBounds()); l.openPopup(); } });
         }
         gmuSelect.onchange = (e) => zoomTo(e.target.value);
         document.getElementById('search-btn').onclick = () => zoomTo(document.getElementById('gmu-search-input').value);
     });
 
-    /* 5. SWAs & PARKS */
+    // 6. SWA
     fetch('data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
-        swaGeojson = L.geoJSON(data, {
-            pane: 'swaPane',
-            style: function(f) {
-                var isPark = f.properties.PropType === "SP";
-                return { color: "#333", weight: 0.8, fillColor: isPark ? "#ff0000" : "#ffff00", fillOpacity: 0.7 };
-            },
-            onEachFeature: function(f, l) {
-                l.bindTooltip(f.properties.PropName, { className: 'land-label' });
-                setupInteractions(l, `<b>${f.properties.PropName}</b>`);
-            }
+        swaGeojson = L.geoJSON(data, { pane: 'swaPane', style: function(f) { var isPark = f.properties.PropType === "SP"; return { color: "#333", weight: 0.8, fillColor: isPark ? "#ff0000" : "#ffff00", fillOpacity: 0.7 }; },
+            onEachFeature: function(f, l) { l.bindTooltip(f.properties.PropName, { className: 'land-label' }); l.bindPopup(`<b>${f.properties.PropName}</b>`); }
         }).addTo(swaLayer);
     });
 
-    /* LEGEND */
+    // 7. LOCATE
+    var LocateControl = L.Control.extend({ options: { position: 'bottomleft' }, onAdd: function (map) { var container = L.DomUtil.create('div', 'custom-control locate-control'); container.innerHTML = '⌖'; container.onclick = function(e) { L.DomEvent.stopPropagation(e); map.locate({setView: true, maxZoom: 14}); }; return container; } });
+    map.addControl(new LocateControl());
+
+    // 8. LEGEND
     var legendWidget = L.control({position: 'bottomright'});
     legendWidget.onAdd = function() {
         var div = L.DomUtil.create('div', 'legend-widget');
@@ -323,20 +248,25 @@
     function updateLegend() {
         var body = document.getElementById('legend-body');
         var html = '';
+        if (map.hasLayer(enrichedMooseLayer)) {
+            html += `<b style="display:block;margin-top:5px; color:#8e44ad">Moose Insights</b>
+                     <div class="legend-item"><div class="legend-box" style="background:#8e44ad"></div>Excellent Habitat</div>
+                     <div class="legend-item"><div class="legend-box" style="background:#2980b9"></div>High Quality Area</div>`;
+        }
         if (map.hasLayer(gmuLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:rgba(0,0,0,0.1)"></div>GMU Boundaries</div>`;
-        if (map.hasLayer(migrationLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#2c3e50; opacity:0.4; border:none;"></div>Elk Migration</div>`;
-        if (map.hasLayer(countyLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#e74c3c; height:2px; border:none;"></div>County Lines</div>`;
         if (map.hasLayer(fedLayer)) {
             html += `<b style="display:block;margin-top:5px">Federal Agencies</b>
                      <div class="legend-item"><div class="legend-box" style="background:#27ae60"></div>US Forest Service</div>
-                     <div class="legend-item"><div class="legend-box" style="background:#e67e22"></div>BLM</div>
-                     <div class="legend-item"><div class="legend-box" style="background:#9b59b6"></div>NPS</div>`;
+                     <div class="legend-item"><div class="legend-box" style="background:#e67e22"></div>BLM</div>`;
         }
-        if (map.hasLayer(swaLayer)) {
-            html += `<b style="display:block;margin-top:5px">State Lands</b>
-                     <div class="legend-item"><div class="legend-box" style="background:#ffff00"></div>SWA</div>
-                     <div class="legend-item"><div class="legend-box" style="background:#ff0000"></div>State Park</div>`;
+        
+        if (map.hasLayer(mooseSummerLayer) || map.hasLayer(mooseWinterLayer) || map.hasLayer(mooseCorridorLayer)) {
+            html += `<b style="display:block;margin-top:5px; border-top: 1px solid #ddd; padding-top: 5px;">Raw Moose Data</b>`;
+            if (map.hasLayer(mooseSummerLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#27ae60; opacity:0.6;"></div>Summer Range</div>`;
+            if (map.hasLayer(mooseWinterLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#2980b9; opacity:0.6;"></div>Winter Range</div>`;
+            if (map.hasLayer(mooseCorridorLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#f1c40f; height: 3px; border:none;"></div>Migration Corridor</div>`;
         }
+
         body.innerHTML = html || 'No active layers';
     }
 
@@ -347,7 +277,6 @@
 
     map.on('overlayadd overlayremove', updateLegend);
     updateLegend();
-    map.on('click', function() { currentSelectedLayer = null; clearAllHovers(); });
 </script>
 </body>
 </html>
