@@ -7,92 +7,72 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        /* ── Reset & Base ────────────────────────────── */
+        /* ── Reset ─────────────────────────────────── */
         *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI', system-ui, sans-serif; overflow:hidden; }
         #map { position:absolute; inset:0; z-index:1; }
 
-        /* ── Shared panel chrome ─────────────────────── */
+        /* ── Shared panel chrome ────────────────────── */
         .map-panel {
             background:rgba(255,255,255,0.97);
             backdrop-filter:blur(6px);
             border-radius:8px;
             box-shadow:0 2px 12px rgba(0,0,0,0.18);
             border:1px solid rgba(0,0,0,0.1);
-            font-family:inherit;
         }
-        .panel-header {
-            background:#2c3e50; color:#fff;
-            padding:9px 13px; cursor:pointer;
-            font-weight:700; font-size:0.88em;
-            display:flex; justify-content:space-between; align-items:center;
-            user-select:none; letter-spacing:0.02em;
-        }
-        .panel-header-left { display:flex; align-items:center; gap:7px; }
-        .panel-header-arrow { font-size:0.75em; transition:transform 0.2s; flex-shrink:0; }
 
-        /* ═══════════════════════════════════════════════
-           TITLE BAR — always visible, never collapses
-        ═══════════════════════════════════════════════ */
-        #title-bar {
-            position:absolute; top:10px; left:50px;
-            z-index:1001;
-            background:#2c3e50;
-            color:#fff;
-            padding:10px 16px;
-            border-radius:8px 8px 0 0;
-            font-weight:900;
-            font-size:1.05em;
-            letter-spacing:0.01em;
-            display:flex; align-items:center; gap:9px;
-            box-shadow:0 2px 12px rgba(0,0,0,0.22);
-            border:1px solid rgba(255,255,255,0.08);
-            border-bottom:none;
-            min-width:280px;
-            pointer-events:none;   /* title itself is not clickable — header below handles toggle */
-        }
-        #title-bar .title-icon {
-            width:22px; height:22px; flex-shrink:0;
-            filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));
-        }
-        #title-bar .title-text { font-size:1.1em; letter-spacing:0.02em; }
-        #title-bar .title-sub  { font-size:0.6em; font-weight:400; opacity:0.6; margin-top:1px; }
-
-        /* ═══════════════════════════════════════════════
-           COMMAND PANEL (collapsible body under title)
-        ═══════════════════════════════════════════════ */
-        #cmd-panel {
+        /* ══════════════════════════════════════════════
+           LEFT COLUMN — title bar + collapsible body
+           All positioned together as one unit at top:10, left:50
+        ══════════════════════════════════════════════ */
+        #left-panel {
             position:absolute;
             top:10px; left:50px;
             z-index:1000;
-            width:280px;
+            width:282px;
+            display:flex;
+            flex-direction:column;
         }
-        /* The clickable collapse header sits flush under the title bar */
-        #cmd-header {
+
+        /* Persistent title — never collapses */
+        #title-bar {
+            background:#2c3e50;
+            color:#fff;
+            padding:10px 14px;
+            border-radius:8px 8px 0 0;
+            display:flex; align-items:center; gap:9px;
+            box-shadow:0 2px 12px rgba(0,0,0,0.22);
+            flex-shrink:0;
+        }
+        .title-icon { width:22px; height:22px; flex-shrink:0; }
+        .title-text { font-size:1.08em; font-weight:900; letter-spacing:0.02em; }
+        .title-sub  { font-size:0.58em; font-weight:400; opacity:0.6; margin-top:1px; }
+
+        /* Collapse toggle strip — sits flush below title */
+        #cmd-toggle {
             background:#374e63; color:#fff;
-            padding:6px 13px 6px 16px;
-            cursor:pointer;
-            font-size:0.72em; font-weight:700;
+            padding:5px 13px 5px 14px;
+            cursor:pointer; user-select:none;
+            font-size:0.68em; font-weight:700;
             text-transform:uppercase; letter-spacing:0.07em;
             display:flex; justify-content:space-between; align-items:center;
-            user-select:none;
-            /* offset to sit below the persistent title bar (~46px tall) */
-            margin-top:46px;
-            border-radius:0;
+            transition:border-radius 0.1s;
         }
+        #cmd-toggle.alone { border-radius:0 0 8px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+
+        /* Collapsible body */
         #cmd-body {
-            padding:10px 12px 12px;
-            border-radius:0 0 8px 8px;
             background:rgba(255,255,255,0.97);
             border:1px solid rgba(0,0,0,0.1);
             border-top:none;
+            border-radius:0 0 8px 8px;
             box-shadow:0 4px 12px rgba(0,0,0,0.15);
+            padding:10px 12px 12px;
+            overflow:hidden;
         }
         #cmd-body.collapsed { display:none; }
-        /* When body collapsed, round the header bottom */
-        #cmd-header.alone { border-radius:0 0 8px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
 
-        /* Search bar */
+        /* Search */
         .search-wrap {
             display:flex; align-items:center;
             background:#f4f6f8; border:1px solid #dde2e8; border-radius:6px;
@@ -102,8 +82,7 @@
         .search-wrap svg { margin:0 8px; flex-shrink:0; opacity:0.45; }
         #gmu-search-input {
             flex:1; border:none; background:transparent;
-            padding:7px 4px; font-size:0.84em; font-family:inherit;
-            color:#2c3e50; outline:none;
+            padding:7px 4px; font-size:0.84em; font-family:inherit; color:#2c3e50; outline:none;
         }
         #gmu-search-input::placeholder { color:#aab; }
         #search-btn {
@@ -126,20 +105,32 @@
         .ac-item:hover, .ac-item.highlighted { background:#eaf1fb; }
         .ac-item b { color:#e67e22; }
 
-        /* Section labels */
-        .cmd-section { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
+        /* Section label */
+        .cmd-section { font-size:0.63em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
+
+        /* Collapsible regs sub-section */
+        .regs-toggle {
+            display:flex; justify-content:space-between; align-items:center;
+            cursor:pointer; user-select:none;
+        }
+        .regs-toggle .regs-arrow { font-size:0.7em; color:#95a5a6; transition:transform 0.2s; }
+        .regs-toggle .regs-arrow.open { transform:rotate(180deg); }
+        #regs-body { margin-top:4px; }
+        #regs-body.collapsed { display:none; }
+        #res-body { margin-top:0; }
+        #res-body.collapsed { display:none; }
 
         /* Regulation table */
-        .reg-table { width:100%; border-collapse:collapse; font-size:0.76em; }
-        .reg-table td { padding:3px 6px 3px 0; vertical-align:top; color:#555; line-height:1.3; }
-        .reg-table td:first-child { font-weight:700; color:#2c3e50; white-space:nowrap; padding-right:8px; width:38%; }
-        .reg-divider { height:1px; background:#f0f0f0; margin:6px 0; }
+        .reg-table { width:100%; border-collapse:collapse; font-size:0.75em; }
+        .reg-table td { padding:2px 6px 2px 0; vertical-align:top; color:#555; line-height:1.35; }
+        .reg-table td:first-child { font-weight:700; color:#2c3e50; white-space:nowrap; padding-right:8px; width:36%; }
+        .reg-divider { height:1px; background:#f0f0f0; margin:5px 0; }
 
         /* Quick-links */
         .quicklinks { display:flex; gap:5px; flex-wrap:wrap; }
         .ql-btn {
             display:inline-flex; align-items:center; gap:5px;
-            padding:5px 9px; font-size:0.75em; font-weight:600;
+            padding:5px 9px; font-size:0.74em; font-weight:600;
             border-radius:5px; text-decoration:none; border:1px solid transparent;
             cursor:pointer; transition:all 0.15s; white-space:nowrap;
         }
@@ -151,19 +142,25 @@
         .ql-btn.orange:hover { background:#fdebd0; }
         .ql-btn.grey   { background:#f4f6f7; color:#424949; border-color:#d5d8dc; }
         .ql-btn.grey:hover   { background:#e8eaed; }
-        .ql-btn.red    { background:#c0392b; color:#fff; border-color:#a93226; }
-        .ql-btn.red:hover    { background:#a93226; }
+        /* onX red — matches the light-tinted style of others */
+        .ql-btn.red    { background:#fdecea; color:#b71c1c; border-color:#f5c6c2; }
+        .ql-btn.red:hover    { background:#fbd3d0; }
+        .ql-btn.purple { background:#f3e8fd; color:#6a1b9a; border-color:#d7b8f5; }
+        .ql-btn.purple:hover { background:#e8d0fb; }
 
-        /* ═══════════════════════════════════════════════
+        /* ══════════════════════════════════════════════
            LAYER PANEL (top-right)
-        ═══════════════════════════════════════════════ */
+        ══════════════════════════════════════════════ */
         #layer-panel { position:absolute; top:10px; right:10px; z-index:1000; width:235px; }
-        #layer-panel .panel-header { border-radius:8px 8px 0 0; }
-        #layer-panel-body { padding:5px 0 4px; max-height:82vh; overflow-y:auto; }
-        #layer-panel-body.collapsed { display:none; }
+        #layer-panel .panel-header {
+            background:#2c3e50; color:#fff; padding:9px 13px; cursor:pointer;
+            font-weight:700; font-size:0.88em; border-radius:8px 8px 0 0;
+            display:flex; justify-content:space-between; align-items:center; user-select:none;
+        }
         #layer-panel.body-hidden .panel-header { border-radius:8px; }
+        #layer-panel-body { padding:5px 0 4px; max-height:82vh; overflow-y:auto; background:#fff; border-radius:0 0 8px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); border:1px solid rgba(0,0,0,0.1); border-top:none; }
+        #layer-panel-body.collapsed { display:none; }
 
-        /* Basemap toggles */
         .lp-basemap-row { display:flex; gap:4px; padding:5px 10px 7px; border-bottom:1px solid #eee; }
         .lp-basemap-btn {
             flex:1; padding:4px 2px; font-size:0.68em; font-weight:700;
@@ -172,13 +169,11 @@
         }
         .lp-basemap-btn.active { background:#2c3e50; color:#fff; border-color:#2c3e50; }
 
-        /* Group headers */
         .lp-group-header {
             display:flex; align-items:center; justify-content:space-between;
             padding:6px 10px 3px; cursor:pointer; user-select:none;
             font-size:0.67em; font-weight:700; text-transform:uppercase;
-            letter-spacing:0.05em; color:#95a5a6; margin-top:3px;
-            border-top:1px solid #f0f0f0;
+            letter-spacing:0.05em; color:#95a5a6; margin-top:3px; border-top:1px solid #f0f0f0;
         }
         .lp-group-header:hover { color:#2c3e50; }
         .lp-group-arrow { font-size:0.8em; transition:transform 0.2s; }
@@ -186,12 +181,7 @@
         .lp-group-body { padding:1px 10px 5px; }
         .lp-group-body.collapsed { display:none; }
 
-        /* Layer rows */
-        .lp-row {
-            display:grid; grid-template-columns:15px 25px 1fr;
-            align-items:center; padding:3px 0; cursor:pointer;
-            font-size:0.82em; color:#2c3e50; line-height:1.3;
-        }
+        .lp-row { display:grid; grid-template-columns:15px 25px 1fr; align-items:center; padding:3px 0; cursor:pointer; font-size:0.82em; color:#2c3e50; line-height:1.3; }
         .lp-row:hover { color:#000; }
         .lp-row input[type="checkbox"] { width:12px; height:12px; margin:0; cursor:pointer; accent-color:#2c3e50; display:block; }
         .lp-symbol { display:flex; align-items:center; justify-content:center; width:25px; }
@@ -207,34 +197,132 @@
         .lp-subrow .lp-dot    { width:9px; height:9px; }
         .lp-subrow .lp-line   { width:12px; }
 
-        /* ── GPS Locate ──────────────────────────────── */
-        .locate-btn {
+        /* ══════════════════════════════════════════════
+           BOTTOM-LEFT NAV CONTROLS
+           Locate + Extent navigation — grouped together
+        ══════════════════════════════════════════════ */
+        #nav-controls {
+            position:fixed; bottom:48px; left:10px;   /* 48px = dock tab height + small gap */
+            z-index:1999;
+            display:flex; flex-direction:column; gap:4px;
+        }
+        .nav-btn {
             display:flex; align-items:center; justify-content:center;
             width:34px; height:34px; background:#fff;
             border:2px solid rgba(0,0,0,0.2); border-radius:4px;
             cursor:pointer; box-shadow:0 1px 5px rgba(0,0,0,0.2);
-            transition:background 0.15s,border-color 0.15s; position:relative;
+            transition:background 0.15s, border-color 0.15s; position:relative;
         }
-        .locate-btn:hover { background:#f0f7ff; border-color:#3498db; }
-        .locate-btn:hover .locate-icon { stroke:#3498db; }
-        .locate-btn:hover .locate-tip { opacity:1; }
-        .locate-btn.active { background:#ebf5fb; border-color:#2980b9; }
-        .locate-icon { stroke:#2c3e50; fill:none; stroke-width:1.6; transition:stroke 0.15s; }
-        .locate-tip {
+        .nav-btn:hover { background:#f0f7ff; border-color:#3498db; }
+        .nav-btn:hover svg { stroke:#3498db; }
+        .nav-btn.active { background:#ebf5fb; border-color:#2980b9; }
+        .nav-btn svg { stroke:#2c3e50; fill:none; stroke-width:1.6; transition:stroke 0.15s; }
+        .nav-btn.disabled { opacity:0.35; cursor:default; pointer-events:none; }
+        /* Tooltip */
+        .nav-tip {
             position:absolute; left:42px; top:50%; transform:translateY(-50%);
             background:#2c3e50; color:#fff; font-size:11px; padding:3px 8px;
-            border-radius:4px; white-space:nowrap; opacity:0; transition:opacity 0.15s; pointer-events:none; z-index:9999;
+            border-radius:4px; white-space:nowrap; opacity:0;
+            transition:opacity 0.15s; pointer-events:none; z-index:9999;
         }
-        .locate-tip::before { content:''; position:absolute; right:100%; top:50%; transform:translateY(-50%); border:4px solid transparent; border-right-color:#2c3e50; }
+        .nav-tip::before { content:''; position:absolute; right:100%; top:50%; transform:translateY(-50%); border:4px solid transparent; border-right-color:#2c3e50; }
+        .nav-btn:hover .nav-tip { opacity:1; }
+        /* Separator line between locate and extent group */
+        .nav-sep { height:1px; background:rgba(0,0,0,0.12); margin:2px 4px; }
 
-        /* ── Popup ───────────────────────────────────── */
-        .leaflet-popup-content-wrapper { border-radius:8px !important; padding:0 !important; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.18) !important; }
-        .leaflet-popup-content { font-family:inherit; line-height:1.4; margin:0 !important; width:308px !important; }
+        /* ══════════════════════════════════════════════
+           UNIT INFO DOCK
+           A compact tab pinned to the bottom-left edge.
+           Matches Layer List chrome (same dark navy header,
+           same font weight, same panel shadow).
+           Arrow in tab points UP (▲) by default — panel
+           expands upward on click. Minimize collapses it
+           back. Close dismisses entirely until next click.
+        ══════════════════════════════════════════════ */
+        #unit-dock {
+            position:fixed;
+            bottom:0; left:55px;
+            z-index:2000;
+            width:340px;
+            display:none;                /* hidden until a GMU is selected */
+            flex-direction:column;       /* body stacks above tab */
+            font-family:'Segoe UI', system-ui, sans-serif;
+            filter:drop-shadow(0 -4px 16px rgba(0,0,0,0.18));
+        }
+        #unit-dock.active { display:flex; }
+
+        /* ── Scrollable content body — above the tab ── */
+        #unit-dock-body {
+            background:#fff;
+            border:1px solid rgba(0,0,0,0.12);
+            border-bottom:none;
+            border-radius:8px 8px 0 0;
+            overflow:hidden;
+            max-height:0;
+            transition:max-height 0.32s cubic-bezier(0.4,0,0.2,1);
+            pointer-events:all;
+        }
+        #unit-dock-body.open { max-height:65vh; }
+        #unit-dock-scroll {
+            overflow-y:auto;
+            max-height:65vh;
+        }
+
+        /* ── Tab header — always visible once dock.active ── */
+        #unit-dock-tab {
+            background:#2c3e50;
+            color:#fff;
+            height:38px; padding:0 12px;
+            border-radius:0;             /* sits flush at screen bottom */
+            display:flex; align-items:center; justify-content:space-between;
+            cursor:pointer; user-select:none;
+            box-shadow:0 -2px 8px rgba(0,0,0,0.20);
+            pointer-events:all;
+            flex-shrink:0;
+        }
+        #unit-dock-tab:hover { background:#34495e; }
+        #unit-dock-tab-left { display:flex; align-items:center; gap:8px; min-width:0; }
+        #unit-dock-tab-icon { flex-shrink:0; opacity:0.75; }
+        #unit-dock-tab-text { min-width:0; }
+        #unit-dock-tab-title {
+            font-size:0.82em; font-weight:700; letter-spacing:0.03em;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        #unit-dock-tab-sub {
+            font-size:0.6em; font-weight:400; opacity:0.55; white-space:nowrap;
+        }
+        #unit-dock-tab-right { display:flex; align-items:center; gap:5px; flex-shrink:0; margin-left:8px; }
+        /* Arrow — points up by default, rotates down when expanded */
+        #unit-dock-arrow {
+            font-size:0.72em; opacity:0.8;
+            transition:transform 0.25s ease;
+        }
+        #unit-dock-arrow.down { transform:rotate(180deg); }
+        /* Minimize and close buttons */
+        .dock-btn {
+            background:rgba(255,255,255,0.12);
+            border:none; color:#fff;
+            width:22px; height:22px; border-radius:3px;
+            cursor:pointer; font-size:10px;
+            display:flex; align-items:center; justify-content:center;
+            transition:background 0.15s; flex-shrink:0;
+        }
+        .dock-btn:hover { background:rgba(255,255,255,0.28); }
+
+        /* Keep Leaflet popup styles for non-GMU popups (trailheads, etc.) */
+        .leaflet-popup-content-wrapper {
+            border-radius:8px !important; padding:0 !important; overflow:hidden;
+            box-shadow:0 6px 24px rgba(0,0,0,0.2) !important;
+        }
+        .leaflet-popup-content {
+            font-family:'Segoe UI', system-ui, sans-serif;
+            line-height:1.4; margin:0 !important; width:280px !important;
+        }
         .leaflet-popup-tip-container { margin-top:-1px; }
 
         .pu-header { background:#2c3e50; color:#fff; padding:11px 15px 10px; }
         .pu-unit-label { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.65; margin-bottom:2px; }
-        .pu-unit-title { font-size:1.35em; font-weight:700; line-height:1.1; }
+        .pu-unit-title { font-size:1.3em; font-weight:700; line-height:1.1; }
         .pu-unit-subtitle { font-size:0.72em; opacity:0.6; margin-top:3px; }
         .pu-body { padding:11px 15px; }
         .pu-section-title { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
@@ -262,51 +350,63 @@
         .pu-spinner { width:13px; height:13px; border-radius:50%; border:2px solid #ddd; border-top-color:#2c3e50; animation:spin 0.7s linear infinite; flex-shrink:0; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
-        /* ── Map labels ──────────────────────────────── */
+        /* Nearby trailheads list */
+        .th-list { list-style:none; margin-top:4px; }
+        .th-list li {
+            display:flex; align-items:center; gap:6px;
+            padding:4px 0; font-size:0.77em; color:#2c3e50;
+            border-bottom:1px solid #f2f2f2; cursor:pointer;
+            transition:background 0.1s;
+        }
+        .th-list li:last-child { border-bottom:none; }
+        .th-list li:hover { color:#e67e22; }
+        .th-list li::before { content:'📍'; font-size:0.9em; flex-shrink:0; }
+        .th-list-empty { font-size:0.77em; color:#aaa; padding:4px 0; }
+
+        /* ── Map labels ─────────────────────────────── */
         .gmu-label,.land-label,.county-label { background:transparent !important; border:none !important; box-shadow:none !important; pointer-events:none; }
         .gmu-label    { font-weight:bold; color:#000; font-size:11px; text-shadow:1px 1px 2px white; }
         .land-label   { color:#2c3e50; font-size:10px; font-style:italic; }
         .county-label { color:#c0392b !important; font-size:11px !important; font-weight:900 !important; text-transform:uppercase; white-space:nowrap; text-shadow:2px 2px 3px white,-2px -2px 3px white,2px -2px 3px white,-2px 2px 3px white; }
-
-        /* ── Trail / Trailhead styles ─────────────────── */
-        .trail-label { background:transparent !important; border:none !important; box-shadow:none !important; color:#5d4037; font-size:9px; font-style:italic; pointer-events:none; }
+        .trail-label  { background:transparent !important; border:none !important; box-shadow:none !important; color:#5d4037; font-size:9px; font-style:italic; pointer-events:none; }
     </style>
 </head>
 <body>
 <div id="map"></div>
 
 <!-- ══════════════════════════════════════════════
-     PERSISTENT TITLE BAR (always visible)
+     LEFT PANEL — title + collapsible body, flush
 ══════════════════════════════════════════════ -->
-<div id="title-bar">
-    <!-- Scope/target SVG icon — relevant for hunting finder tool -->
-    <svg class="title-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="9" stroke="white" stroke-width="1.8"/>
-        <circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.8"/>
-        <circle cx="12" cy="12" r="1.5" fill="white"/>
-        <line x1="12" y1="2" x2="12" y2="6" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-        <line x1="12" y1="18" x2="12" y2="22" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-        <line x1="2" y1="12" x2="6" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-        <line x1="18" y1="12" x2="22" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-    </svg>
-    <div>
-        <div class="title-text">Colorado Moose Finder</div>
-        <div class="title-sub">Hunt Unit Intelligence · CPW Data</div>
-    </div>
-</div>
+<div id="left-panel">
 
-<!-- ══════════════════════════════════════════════
-     COMMAND PANEL (collapsible, sits below title)
-══════════════════════════════════════════════ -->
-<div id="cmd-panel">
-    <div id="cmd-header">
-        <span>Unit Search &amp; Info</span>
-        <span class="panel-header-arrow" id="cmd-arrow">▼</span>
+    <!-- Persistent title bar -->
+    <div id="title-bar">
+        <svg class="title-icon" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="white" stroke-width="1.8"/>
+            <circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.8"/>
+            <circle cx="12" cy="12" r="1.5" fill="white"/>
+            <line x1="12" y1="2" x2="12" y2="6" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="12" y1="18" x2="12" y2="22" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="2" y1="12" x2="6" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="18" y1="12" x2="22" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <div>
+            <div class="title-text">Colorado Moose Finder</div>
+            <div class="title-sub">Hunt Unit Intelligence · CPW Data</div>
+        </div>
     </div>
+
+    <!-- Collapse toggle strip — flush below title -->
+    <div id="cmd-toggle">
+        <span>Unit Search &amp; Info</span>
+        <span id="cmd-arrow">▼</span>
+    </div>
+
+    <!-- Collapsible body -->
     <div id="cmd-body">
 
         <!-- GMU Search -->
-        <div style="position:relative;" id="search-container">
+        <div style="position:relative;">
             <div class="search-wrap">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2c3e50" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
                 <input type="text" id="gmu-search-input" placeholder="Search GMU number…" autocomplete="off" aria-label="Search GMU">
@@ -315,32 +415,40 @@
             <div id="gmu-autocomplete"></div>
         </div>
 
-        <!-- Hunt Regulations -->
-        <div class="cmd-section">2026 Moose Hunt Regulations</div>
-        <table class="reg-table">
-            <tr><td>Season (Archery)</td><td>Sep 5 – Oct 3, 2026</td></tr>
-            <tr><td>Season (Rifle)</td><td>Oct 4 – Nov 1, 2026</td></tr>
-            <tr><td>License Type</td><td>Limited Draw only — no OTC</td></tr>
-            <tr><td>Legal Animals</td><td>Any Bull or Antlerless (by tag)</td></tr>
-            <tr><td>Antler Restr.</td><td>None — any legal moose</td></tr>
-        </table>
-        <div class="reg-divider"></div>
-        <table class="reg-table">
-            <tr><td>Legal Weapons</td><td>Bow (archery), rifle, muzzleloader</td></tr>
-            <tr><td>Orange Req.</td><td>500 sq in fluorescent orange required during rifle season</td></tr>
-            <tr><td>Shooting Hours</td><td>30 min before sunrise to 30 min after sunset</td></tr>
-            <tr><td>Tag Transfer</td><td>Non-transferable; hunter must be present</td></tr>
-            <tr><td>License Info</td><td>cpw.state.co.us — Draw results mid-June</td></tr>
-        </table>
+        <!-- Regulations — collapsible sub-section -->
+        <div class="cmd-section regs-toggle" id="regs-toggle">
+            <span>2026 Moose Hunt Regulations</span>
+            <span class="regs-arrow open" id="regs-arrow">▲</span>
+        </div>
+        <div id="regs-body">
+            <table class="reg-table">
+                <tr><td>Archery</td><td>Sep 5 – Oct 3, 2026</td></tr>
+                <tr><td>Rifle</td><td>Oct 4 – Nov 1, 2026</td></tr>
+                <tr><td>License</td><td>Limited Draw — no OTC</td></tr>
+                <tr><td>Legal Animals</td><td>Any Bull or Antlerless</td></tr>
+                <tr><td>Antler Restr.</td><td>None — any legal moose</td></tr>
+            </table>
+            <div class="reg-divider"></div>
+            <table class="reg-table">
+                <tr><td>Weapons</td><td>Bow, rifle, muzzleloader</td></tr>
+                <tr><td>Orange Req.</td><td>500 sq in during rifle season</td></tr>
+                <tr><td>Shoot Hours</td><td>30 min before sunrise to 30 min after sunset</td></tr>
+                <tr><td>Tag Transfer</td><td>Non-transferable; hunter must be present</td></tr>
+            </table>
+        </div>
 
-        <!-- Quick Links -->
-        <div class="cmd-section" style="margin-top:10px;">Resources</div>
-        <div class="quicklinks">
+        <!-- Resources — collapsible sub-section -->
+        <div class="cmd-section regs-toggle" id="res-toggle" style="margin-top:10px;">
+            <span>Resources</span>
+            <span class="regs-arrow open" id="res-arrow">▲</span>
+        </div>
+        <div id="res-body">
+        <div class="quicklinks" style="margin-top:5px;">
             <a href="docs/brochure_2026.pdf" target="_blank" class="ql-btn green">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 2026 Brochure
             </a>
-            <a href="https://cpw.state.co.us/thingstodo/Pages/MooseHunting.aspx" target="_blank" class="ql-btn blue">
+            <a href="https://cpw.state.co.us/rules-and-regulations" target="_blank" class="ql-btn blue">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 CPW Regs
             </a>
@@ -348,183 +456,186 @@
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
                 CO TREX
             </a>
-            <a href="https://cpw.state.co.us/thingstodo/Pages/Moose.aspx" target="_blank" class="ql-btn grey">
+            <a href="https://cpw.state.co.us/activities/hunting/big-game/hunting-moose" target="_blank" class="ql-btn grey">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 Moose Info
             </a>
-            <!-- onX Maps — red brand button with X logo -->
+            <!-- Draw odds / license portal — very useful for new hunters -->
+            <a href="https://cpw.state.co.us/activities/hunting/big-game/primary-draw" target="_blank" class="ql-btn purple">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                    <line x1="8" y1="14" x2="16" y2="14"/><line x1="12" y1="14" x2="12" y2="18"/>
+                </svg>
+                Draw &amp; Odds
+            </a>
             <a href="https://www.onxmaps.com/" target="_blank" class="ql-btn red">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <!-- onX "X" mark logo approximation -->
-                    <line x1="4" y1="4" x2="20" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="20" y1="4" x2="4" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                <!-- onX X mark -->
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                    <line x1="4" y1="4" x2="20" y2="20" stroke="#b71c1c" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="20" y1="4" x2="4" y2="20" stroke="#b71c1c" stroke-width="3" stroke-linecap="round"/>
                 </svg>
                 onX Maps
             </a>
-        </div>
+        </div><!-- /quicklinks -->
+        </div><!-- /res-body -->
 
     </div>
-</div>
+</div><!-- /left-panel -->
+
+<!-- ══════════════════════════════════════════════
+     UNIT INFO DOCK — slide-up panel, bottom-left
+     Tab always visible once a GMU is selected.
+     Arrow (▲) in tab, content expands upward.
+══════════════════════════════════════════════ -->
+<div id="unit-dock">
+
+    <!-- Content body — expands upward above the tab -->
+    <div id="unit-dock-body">
+        <div id="unit-dock-scroll"></div>
+    </div>
+
+    <!-- Tab header — mirrors Layer List chrome -->
+    <div id="unit-dock-tab" role="button" aria-label="Toggle unit info panel">
+        <div id="unit-dock-tab-left">
+            <!-- Small map pin icon -->
+            <svg id="unit-dock-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <div id="unit-dock-tab-text">
+                <div id="unit-dock-tab-title">Unit Info</div>
+                <div id="unit-dock-tab-sub">Click a GMU to load</div>
+            </div>
+        </div>
+        <div id="unit-dock-tab-right">
+            <!-- Arrow — up by default, flips down when open -->
+            <span id="unit-dock-arrow">▲</span>
+            <!-- Minimize (collapse to tab only) -->
+            <button class="dock-btn" id="dock-minimize-btn" aria-label="Minimize panel" title="Minimize">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <!-- Close (dismiss dock entirely) -->
+            <button class="dock-btn" id="dock-close-btn" aria-label="Close panel" title="Close">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+    </div>
+
+</div><!-- /unit-dock -->
 
 <!-- ══════════════════════════════════════════════
      LAYER PANEL (top-right)
 ══════════════════════════════════════════════ -->
-<div id="layer-panel" class="map-panel">
+<div id="layer-panel">
     <div class="panel-header" id="layer-panel-header">
-        <span class="panel-header-left">Layer List</span>
-        <span class="panel-header-arrow" id="layer-panel-arrow">▼</span>
+        Layer List <span id="layer-panel-arrow" style="font-size:0.75em;">▼</span>
     </div>
     <div id="layer-panel-body">
 
-        <!-- Basemap toggles — Street / Satellite / Hillshade -->
         <div class="lp-basemap-row">
             <div class="lp-basemap-btn active" id="btn-osm">Street</div>
             <div class="lp-basemap-btn" id="btn-satellite">Satellite</div>
             <div class="lp-basemap-btn" id="btn-hillshade">Terrain</div>
         </div>
 
-        <!-- Boundaries -->
         <div class="lp-group-header" data-group="boundaries">Boundaries <span class="lp-group-arrow">▼</span></div>
         <div class="lp-group-body" id="group-boundaries">
-            <label class="lp-row">
-                <input type="checkbox" id="chk-gmu" checked>
-                <span class="lp-symbol"><span class="lp-outline"></span></span>
-                GMU Boundaries
-            </label>
-            <label class="lp-row">
-                <input type="checkbox" id="chk-county">
-                <span class="lp-symbol"><span class="lp-line" style="background:#e74c3c;"></span></span>
-                County Lines
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-gmu" checked><span class="lp-symbol"><span class="lp-outline"></span></span>GMU Boundaries</label>
+            <label class="lp-row"><input type="checkbox" id="chk-county"><span class="lp-symbol"><span class="lp-line" style="background:#e74c3c;"></span></span>County Lines</label>
         </div>
 
-        <!-- Moose Habitat & Range -->
         <div class="lp-group-header" data-group="moose-habitat">Moose Habitat &amp; Range <span class="lp-group-arrow">▼</span></div>
         <div class="lp-group-body" id="group-moose-habitat">
-            <label class="lp-row">
-                <input type="checkbox" id="chk-mooseHabitat" checked>
-                <span class="lp-symbol"><span class="lp-swatch" style="background:linear-gradient(to bottom,#1a6e3c,#52b788,#d4edda);"></span></span>
-                Habitat Quality
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-mooseHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:linear-gradient(to bottom,#1a6e3c,#52b788,#d4edda);"></span></span>Habitat Quality</label>
             <div class="lp-sublabel" id="habitat-sublabel">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#1a6e3c;"></span> Excellent</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#52b788;"></span> Good</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#95d5b2;"></span> Moderate</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#d4edda;"></span> Low / Other</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#1a6e3c;"></span>Excellent</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#52b788;"></span>Good</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#95d5b2;"></span>Moderate</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#d4edda;"></span>Low / Other</div>
             </div>
-
-            <!-- RENAMED: Year-Round Range with clear tier labels -->
-            <label class="lp-row">
-                <input type="checkbox" id="chk-coreHabitat">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span></span>
-                Year-Round Range
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-coreHabitat"><span class="lp-symbol"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span></span>Year-Round Range</label>
             <div class="lp-sublabel" id="core-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#7b2d8b;border-color:#4a1a54;"></span> Primary (≥5,000 ac)</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span> Secondary (1,000–4,999 ac)</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#dba3e8;border-color:#b85cc8;"></span> Remnant (&lt;1,000 ac)</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#7b2d8b;border-color:#4a1a54;"></span>Primary (≥5,000 ac)</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span>Secondary (1,000–4,999 ac)</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#dba3e8;border-color:#b85cc8;"></span>Remnant (&lt;1,000 ac)</div>
             </div>
-
-            <label class="lp-row">
-                <input type="checkbox" id="chk-mooseSummer">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#f39c12;opacity:0.8;"></span></span>
-                Summer Range
-            </label>
-            <label class="lp-row">
-                <input type="checkbox" id="chk-mooseWinter">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#3498db;opacity:0.8;"></span></span>
-                Winter Range
-            </label>
-            <label class="lp-row">
-                <input type="checkbox" id="chk-mooseMigration">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#9b59b6;opacity:0.8;"></span></span>
-                Migration Corridors
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-mooseSummer"><span class="lp-symbol"><span class="lp-swatch" style="background:#f39c12;opacity:0.8;"></span></span>Summer Range</label>
+            <label class="lp-row"><input type="checkbox" id="chk-mooseWinter"><span class="lp-symbol"><span class="lp-swatch" style="background:#3498db;opacity:0.8;"></span></span>Winter Range</label>
+            <label class="lp-row"><input type="checkbox" id="chk-mooseMigration"><span class="lp-symbol"><span class="lp-swatch" style="background:#9b59b6;opacity:0.8;"></span></span>Migration Corridors</label>
         </div>
 
-        <!-- Moose Mgmt Units -->
         <div class="lp-group-header" data-group="moose-units">Moose Mgmt Units <span class="lp-group-arrow">▼</span></div>
         <div class="lp-group-body" id="group-moose-units">
-            <label class="lp-row">
-                <input type="checkbox" id="chk-mooseDaus">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#e74c3c;opacity:0.65;"></span></span>
-                Data Analysis Units
-            </label>
-            <label class="lp-row">
-                <input type="checkbox" id="chk-mooseGmus">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#1abc9c;opacity:0.65;"></span></span>
-                Moose GMUs
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-mooseDaus"><span class="lp-symbol"><span class="lp-swatch" style="background:#e74c3c;opacity:0.65;"></span></span>Data Analysis Units</label>
+            <label class="lp-row"><input type="checkbox" id="chk-mooseGmus"><span class="lp-symbol"><span class="lp-swatch" style="background:#1abc9c;opacity:0.65;"></span></span>Moose GMUs</label>
         </div>
 
-        <!-- Land Ownership -->
         <div class="lp-group-header" data-group="land-ownership">Land Ownership <span class="lp-group-arrow">▼</span></div>
         <div class="lp-group-body" id="group-land-ownership">
-            <label class="lp-row">
-                <input type="checkbox" id="chk-federal">
-                <span class="lp-symbol"><span class="lp-multi"><span style="background:#27ae60;"></span><span style="background:#e67e22;"></span><span style="background:#9b59b6;"></span></span></span>
-                Federal Lands
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-federal"><span class="lp-symbol"><span class="lp-multi"><span style="background:#27ae60;"></span><span style="background:#e67e22;"></span><span style="background:#9b59b6;"></span></span></span>Federal Lands</label>
             <div class="lp-sublabel" id="federal-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#27ae60;"></span> US Forest Service</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#e67e22;"></span> BLM</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#9b59b6;"></span> NPS</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#27ae60;"></span>US Forest Service</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#e67e22;"></span>BLM</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#9b59b6;"></span>NPS</div>
             </div>
-            <label class="lp-row">
-                <input type="checkbox" id="chk-swa">
-                <span class="lp-symbol"><span class="lp-multi"><span style="background:#ffff00;border:1px solid #ccc;"></span><span style="background:#ff4444;"></span></span></span>
-                SWAs &amp; State Parks
-            </label>
+            <label class="lp-row"><input type="checkbox" id="chk-swa"><span class="lp-symbol"><span class="lp-multi"><span style="background:#ffff00;border:1px solid #ccc;"></span><span style="background:#ff4444;"></span></span></span>SWAs &amp; State Parks</label>
             <div class="lp-sublabel" id="swa-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#ffff00;border:1px solid #aaa;"></span> State Wildlife Area</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#ff4444;"></span> State Park</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#ffff00;border:1px solid #aaa;"></span>State Wildlife Area</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#ff4444;"></span>State Park</div>
             </div>
         </div>
 
-        <!-- ══ NEW: Trails & Access ══ -->
         <div class="lp-group-header" data-group="access">Trails &amp; Access <span class="lp-group-arrow">▼</span></div>
         <div class="lp-group-body" id="group-access">
-
-            <!-- Trailhead Access Zones (buffered) -->
-            <label class="lp-row">
-                <input type="checkbox" id="chk-accessZone">
-                <span class="lp-symbol"><span class="lp-swatch" style="background:#f0a500;opacity:0.35;border-color:#c17f00;"></span></span>
-                Trailhead Access Zones
-            </label>
-
-            <!-- Trails -->
-            <label class="lp-row">
-                <input type="checkbox" id="chk-trails">
-                <span class="lp-symbol"><span class="lp-line" style="background:#8B4513;height:2px;"></span></span>
-                CO TREX Trails
-            </label>
-            <div class="lp-sublabel" id="trails-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-line" style="background:#5d4037;height:2px;width:14px;"></span> Hiking</div>
-                <div class="lp-subrow"><span class="lp-line" style="background:#1565c0;height:2px;width:14px;"></span> OHV / ATV</div>
-                <div class="lp-subrow"><span class="lp-line" style="background:#2e7d32;height:2px;width:14px;"></span> Horse / Pack</div>
-                <div class="lp-subrow"><span class="lp-line" style="background:#888;height:2px;width:14px;"></span> Other</div>
-            </div>
-
-            <!-- Trailheads -->
-            <label class="lp-row">
-                <input type="checkbox" id="chk-trailheads">
-                <span class="lp-symbol"><span class="lp-dot" style="background:#e65100;border-color:#bf360c;"></span></span>
-                Trailheads
-            </label>
-
-            <!-- OSM Forest Roads -->
-            <label class="lp-row">
-                <input type="checkbox" id="chk-forestRoads">
-                <span class="lp-symbol"><span class="lp-line" style="background:#795548;height:3px;border-radius:1px;"></span></span>
-                Forest Roads
-            </label>
-            <div class="lp-sublabel" id="roads-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-line" style="background:#5d4037;height:3px;width:14px;"></span> Track / Unpaved</div>
-                <div class="lp-subrow"><span class="lp-line" style="background:#8d6e63;height:2px;width:14px;"></span> Forest Service Rd</div>
-            </div>
-
+            <label class="lp-row"><input type="checkbox" id="chk-accessZone"><span class="lp-symbol"><span class="lp-swatch" style="background:#f0a500;opacity:0.4;border-color:#c17f00;"></span></span>Trailhead Access Zones</label>
+            <label class="lp-row"><input type="checkbox" id="chk-trailheads"><span class="lp-symbol"><span class="lp-dot" style="background:#e65100;border-color:#bf360c;"></span></span>Trailheads</label>
         </div>
 
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     BOTTOM-LEFT NAV CONTROLS
+══════════════════════════════════════════════ -->
+<div id="nav-controls">
+    <!-- GPS Locate -->
+    <div class="nav-btn" id="locate-btn" role="button" aria-label="Find my location" tabindex="0">
+        <svg width="17" height="17" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="7"/>
+            <circle cx="12" cy="12" r="2.5" style="fill:#2c3e50;stroke:none;"/>
+            <line x1="12" y1="2"  x2="12" y2="5"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="2"  y1="12" x2="5"  y2="12"/>
+            <line x1="19" y1="12" x2="22" y2="12"/>
+        </svg>
+        <div class="nav-tip">Find My Location</div>
+    </div>
+
+    <div class="nav-sep"></div>
+
+    <!-- Return to full Colorado extent -->
+    <div class="nav-btn" id="btn-home" role="button" aria-label="Return to full extent" tabindex="0">
+        <svg width="17" height="17" viewBox="0 0 24 24">
+            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+            <path d="M9 21V12h6v9"/>
+        </svg>
+        <div class="nav-tip">Full Extent</div>
+    </div>
+
+    <!-- Previous extent -->
+    <div class="nav-btn disabled" id="btn-prev-extent" role="button" aria-label="Previous extent" tabindex="0">
+        <svg width="17" height="17" viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <div class="nav-tip">Previous Extent</div>
+    </div>
+
+    <!-- Next extent -->
+    <div class="nav-btn disabled" id="btn-next-extent" role="button" aria-label="Next extent" tabindex="0">
+        <svg width="17" height="17" viewBox="0 0 24 24">
+            <polyline points="9 18 15 12 9 6"/>
+        </svg>
+        <div class="nav-tip">Next Extent</div>
     </div>
 </div>
 
@@ -538,6 +649,8 @@ const CONFIG = {
     MAP_CENTER: [39.0, -105.5],
     MAP_ZOOM: 7,
     ACTIVE_STYLE: { color:'#00FFFF', weight:6, fillOpacity:0 },
+    // 10-mile haversine radius in degrees (approximate, good enough for listing)
+    TH_RADIUS_DEG: 10 / 69.0,
     DATA_PATHS: {
         gmus:           'data/processed/CPW_GMU_Boundary_BigGame_CO.geojson',
         mooseHabitat:   'data/processed/moose_habitat_enriched.geojson',
@@ -552,12 +665,8 @@ const CONFIG = {
         swas:           'data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson',
         accessZone:     'data/processed/Moose_Trailhead_Access_Zones.geojson'
     },
-    // Live ArcGIS REST APIs — paginated to first 2000 features
     API: {
-        trails:     'https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/arcgis/rest/services/CPWAdminData/FeatureServer/15/query?outFields=*&where=1%3D1&resultRecordCount=2000&f=geojson',
-        trailheads: 'https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/arcgis/rest/services/CPWAdminData/FeatureServer/14/query?outFields=*&where=1%3D1&resultRecordCount=2000&f=geojson',
-        // Overpass — CO forest tracks & service roads (bbox: CO)
-        osmRoads: `https://overpass-api.de/api/interpreter?data=${encodeURIComponent('[out:json][timeout:60];(way["highway"~"track|unclassified|service"]["access"!="private"](36.99,-109.05,41.00,-102.04););out geom;')}`
+        trailheads: 'https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/arcgis/rest/services/CPWAdminData/FeatureServer/14/query?outFields=*&where=1%3D1&resultRecordCount=2000&f=geojson'
     }
 };
 
@@ -565,44 +674,49 @@ const CONFIG = {
 const HAB_COLORS = { excellent:'#1a6e3c', good:'#52b788', moderate:'#95d5b2', default:'#d4edda' };
 const getHabColor = v => HAB_COLORS[String(v||'').toLowerCase().trim()] || HAB_COLORS.default;
 
-// RENAMED tiers with hunter-friendly labels
 const CORE_COLORS = {
     'Large Core':  { fill:'#7b2d8b', border:'#4a1a54', label:'Primary Range' },
     'Medium Core': { fill:'#b85cc8', border:'#7b2d8b', label:'Secondary Range' },
     'Small Core':  { fill:'#dba3e8', border:'#b85cc8', label:'Remnant Range' }
 };
 
-const getTrailColor = type => {
-    if (!type) return '#888';
-    const t = type.toLowerCase();
-    if (t.includes('ohv') || t.includes('atv') || t.includes('motorized')) return '#1565c0';
-    if (t.includes('horse') || t.includes('equestrian') || t.includes('pack')) return '#2e7d32';
-    if (t.includes('hik') || t.includes('foot') || t.includes('pedestrian')) return '#5d4037';
-    return '#888';
-};
-
-/* ── Base layers ───────────────────────────────── */
+/* ── Base layers ────────────────────────────────── */
 const baseLayers = {
     osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                     { attribution:'&copy; OpenStreetMap contributors', maxZoom:19 }),
     satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     { attribution:'Tiles &copy; Esri', maxZoom:19 }),
-    // USGS National Map Shadded Relief — best free hillshade for CONUS
     hillshade: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}',
                     { attribution:'USGS National Map', maxZoom:16, opacity:0.9 })
 };
 
-/* ── Map ───────────────────────────────────────── */
-const map = L.map('map', { center:CONFIG.MAP_CENTER, zoom:CONFIG.MAP_ZOOM, layers:[baseLayers.osm], zoomControl:true });
+/* ── Map — autoPanPadding keeps popups clear of panels ── */
+const map = L.map('map', {
+    center: CONFIG.MAP_CENTER,
+    zoom: CONFIG.MAP_ZOOM,
+    layers: [baseLayers.osm],
+    zoomControl: true
+});
+
+/* ── Custom popup opening with auto-pan padding ── */
+// Override map.openPopup to always push popup clear of left/right panels
+const _origOpenPopup = map.openPopup.bind(map);
+map.openPopup = function(popup, latlng, options) {
+    return _origOpenPopup(popup, latlng, {
+        autoPanPaddingTopLeft:    L.point(310, 70),   // clear of left panel + title
+        autoPanPaddingBottomRight: L.point(260, 60),  // clear of layer panel
+        ...options
+    });
+};
 
 /* ── Panes ─────────────────────────────────────── */
 const PANES = {
-    forestRoadPane:330, accessZonePane:340,
+    accessZonePane:340, forestRoadPane:345,
     federalPane:350, countyPane:360,
     mooseWinterPane:370, mooseSummerPane:375,
     mooseMigPane:380, mooseHabitatPane:385, coreHabitatPane:388,
     mooseDauPane:390, mooseGmuPane:395, gmuPane:400,
-    swaPane:450, trailPane:460, trailheadPane:470, labelPane:650
+    swaPane:450, trailheadPane:470, labelPane:650
 };
 Object.entries(PANES).forEach(([n,z]) => { map.createPane(n); map.getPane(n).style.zIndex = z; });
 
@@ -610,64 +724,148 @@ Object.entries(PANES).forEach(([n,z]) => { map.createPane(n); map.getPane(n).sty
 const layers = {
     gmu: L.layerGroup().addTo(map),
     mooseHabitat: L.layerGroup().addTo(map),
-    coreHabitat: L.layerGroup(),
-    mooseDaus: L.layerGroup(), mooseGmus: L.layerGroup(),
+    coreHabitat: L.layerGroup(), mooseDaus: L.layerGroup(), mooseGmus: L.layerGroup(),
     mooseMigration: L.layerGroup(), mooseSummer: L.layerGroup(), mooseWinter: L.layerGroup(),
     county: L.layerGroup(), federal: L.layerGroup(), swa: L.layerGroup(),
-    trails: L.layerGroup(), trailheads: L.layerGroup(),
-    forestRoads: L.layerGroup(), accessZone: L.layerGroup()
+    trailheads: L.layerGroup(), accessZone: L.layerGroup()
 };
 
 /* ── State ─────────────────────────────────────── */
 const state = {
     geoJsonLayers: Object.fromEntries(Object.keys(layers).map(k=>[k,null])),
     rawGeoJSON: { mooseHabitat:null, coreHabitat:null, federal:null, swa:null, accessZone:null },
+    trailheadFeatures: [],   // raw point features for proximity query
     gmuFeatures: [],
     currentSelection: null, locationMarker: null, locating: false
 };
 
 /* ════════════════════════════════════════════════
-   COMMAND PANEL — title bar + collapse logic
+   EXTENT HISTORY
 ════════════════════════════════════════════════ */
-const cmdHeader = document.getElementById('cmd-header');
-const cmdBody   = document.getElementById('cmd-body');
-const cmdArrow  = document.getElementById('cmd-arrow');
+const extentHistory = { stack: [], idx: -1, recording: true };
 
-cmdHeader.addEventListener('click', () => {
-    const collapsed = cmdBody.classList.toggle('collapsed');
-    cmdArrow.textContent = collapsed ? '▲' : '▼';
-    cmdHeader.classList.toggle('alone', collapsed);
+function recordExtent() {
+    if (!extentHistory.recording) return;
+    const center = map.getCenter();
+    const zoom   = map.getZoom();
+    // Truncate forward history when navigating from mid-stack
+    extentHistory.stack = extentHistory.stack.slice(0, extentHistory.idx + 1);
+    extentHistory.stack.push({ center, zoom });
+    extentHistory.idx = extentHistory.stack.length - 1;
+    updateExtentBtns();
+}
+
+function updateExtentBtns() {
+    const prevBtn = document.getElementById('btn-prev-extent');
+    const nextBtn = document.getElementById('btn-next-extent');
+    prevBtn.classList.toggle('disabled', extentHistory.idx <= 0);
+    nextBtn.classList.toggle('disabled', extentHistory.idx >= extentHistory.stack.length - 1);
+}
+
+map.on('moveend', recordExtent);
+
+document.getElementById('btn-home').addEventListener('click', () => {
+    extentHistory.recording = false;
+    map.setView(CONFIG.MAP_CENTER, CONFIG.MAP_ZOOM);
+    setTimeout(() => { extentHistory.recording = true; }, 500);
 });
 
-/* ── Autocomplete search ───────────────────────── */
-const acEl     = document.getElementById('gmu-autocomplete');
+document.getElementById('btn-prev-extent').addEventListener('click', () => {
+    if (extentHistory.idx <= 0) return;
+    extentHistory.idx--;
+    const e = extentHistory.stack[extentHistory.idx];
+    extentHistory.recording = false;
+    map.setView(e.center, e.zoom, { animate:true });
+    setTimeout(() => { extentHistory.recording = true; updateExtentBtns(); }, 500);
+    updateExtentBtns();
+});
+
+document.getElementById('btn-next-extent').addEventListener('click', () => {
+    if (extentHistory.idx >= extentHistory.stack.length - 1) return;
+    extentHistory.idx++;
+    const e = extentHistory.stack[extentHistory.idx];
+    extentHistory.recording = false;
+    map.setView(e.center, e.zoom, { animate:true });
+    setTimeout(() => { extentHistory.recording = true; updateExtentBtns(); }, 500);
+    updateExtentBtns();
+});
+
+/* ════════════════════════════════════════════════
+   GPS LOCATE (wired into #nav-controls)
+════════════════════════════════════════════════ */
+const locateBtn = document.getElementById('locate-btn');
+L.DomEvent.disableClickPropagation(document.getElementById('nav-controls'));
+
+locateBtn.addEventListener('click', () => {
+    if (state.locating) return;
+    state.locating = true;
+    locateBtn.classList.add('active');
+    map.locate({ setView:true, maxZoom:14 });
+});
+map.on('locationfound', e => {
+    state.locating = false; locateBtn.classList.remove('active');
+    if (state.locationMarker) map.removeLayer(state.locationMarker);
+    state.locationMarker = L.circleMarker(e.latlng, { radius:8, fillColor:'#3498db', color:'#fff', weight:2, fillOpacity:0.9 })
+        .addTo(map).bindPopup('<b>Your Location</b>').openPopup();
+});
+map.on('locationerror', () => { state.locating=false; locateBtn.classList.remove('active'); });
+
+/* ════════════════════════════════════════════════
+   LEFT PANEL CONTROLS
+════════════════════════════════════════════════ */
+// Main body collapse
+document.getElementById('cmd-toggle').addEventListener('click', () => {
+    const body    = document.getElementById('cmd-body');
+    const arrow   = document.getElementById('cmd-arrow');
+    const toggle  = document.getElementById('cmd-toggle');
+    const collapsed = body.classList.toggle('collapsed');
+    arrow.textContent = collapsed ? '▲' : '▼';
+    toggle.classList.toggle('alone', collapsed);
+});
+
+// Regulations sub-collapse
+document.getElementById('regs-toggle').addEventListener('click', () => {
+    const body  = document.getElementById('regs-body');
+    const arrow = document.getElementById('regs-arrow');
+    const col   = body.classList.toggle('collapsed');
+    arrow.classList.toggle('open', !col);
+});
+
+// Resources sub-collapse
+document.getElementById('res-toggle').addEventListener('click', () => {
+    const body  = document.getElementById('res-body');
+    const arrow = document.getElementById('res-arrow');
+    const col   = body.classList.toggle('collapsed');
+    arrow.classList.toggle('open', !col);
+});
+
+// Autocomplete
+const acEl    = document.getElementById('gmu-autocomplete');
 const searchEl = document.getElementById('gmu-search-input');
 let acIndex = -1;
 
-function showAutocomplete(query) {
-    if (!query || !state.gmuFeatures.length) { acEl.classList.remove('visible'); return; }
-    const q = query.toLowerCase();
-    const matches = state.gmuFeatures.filter(f => String(f.properties.GMUID).includes(q)).slice(0, 8);
+function showAutocomplete(q) {
+    if (!q || !state.gmuFeatures.length) { acEl.classList.remove('visible'); return; }
+    const matches = state.gmuFeatures.filter(f => String(f.properties.GMUID).includes(q)).slice(0,8);
     if (!matches.length) { acEl.classList.remove('visible'); return; }
     acEl.innerHTML = matches.map((f,i) => {
         const id = f.properties.GMUID;
         const hl = String(id).replace(new RegExp(`(${q})`, 'gi'), '<b>$1</b>');
         return `<div class="ac-item" data-id="${id}" data-index="${i}">Unit ${hl}</div>`;
     }).join('');
-    acEl.classList.add('visible');
-    acIndex = -1;
+    acEl.classList.add('visible'); acIndex = -1;
     acEl.querySelectorAll('.ac-item').forEach(item => {
-        item.addEventListener('mousedown', e => { e.preventDefault(); zoomToGmu(item.dataset.id); acEl.classList.remove('visible'); searchEl.value = `Unit ${item.dataset.id}`; });
+        item.addEventListener('mousedown', e => { e.preventDefault(); zoomToGmu(item.dataset.id); acEl.classList.remove('visible'); searchEl.value=`Unit ${item.dataset.id}`; });
     });
 }
 searchEl.addEventListener('input',  e => showAutocomplete(e.target.value.trim()));
 searchEl.addEventListener('blur',   () => setTimeout(() => acEl.classList.remove('visible'), 150));
 searchEl.addEventListener('keydown', e => {
     const items = acEl.querySelectorAll('.ac-item');
-    if      (e.key === 'ArrowDown')  { acIndex = Math.min(acIndex+1, items.length-1); }
-    else if (e.key === 'ArrowUp')    { acIndex = Math.max(acIndex-1, 0); }
-    else if (e.key === 'Enter') {
-        if (acIndex >= 0 && items[acIndex]) { const id=items[acIndex].dataset.id; zoomToGmu(id); acEl.classList.remove('visible'); searchEl.value=`Unit ${id}`; }
+    if      (e.key==='ArrowDown')  { acIndex=Math.min(acIndex+1,items.length-1); }
+    else if (e.key==='ArrowUp')    { acIndex=Math.max(acIndex-1,0); }
+    else if (e.key==='Enter') {
+        if (acIndex>=0&&items[acIndex]) { const id=items[acIndex].dataset.id; zoomToGmu(id); acEl.classList.remove('visible'); searchEl.value=`Unit ${id}`; }
         else zoomToGmu(searchEl.value.trim());
         return;
     } else return;
@@ -691,7 +889,6 @@ document.querySelectorAll('.lp-group-header').forEach(hdr => {
     });
 });
 
-/* ── Basemap toggle ────────────────────────────── */
 let activeBase = baseLayers.osm;
 function setBase(key, btnId) {
     if (activeBase !== baseLayers[key]) { map.removeLayer(activeBase); map.addLayer(baseLayers[key]); activeBase = baseLayers[key]; }
@@ -702,20 +899,16 @@ document.getElementById('btn-osm').addEventListener('click',       () => setBase
 document.getElementById('btn-satellite').addEventListener('click', () => setBase('satellite', 'btn-satellite'));
 document.getElementById('btn-hillshade').addEventListener('click', () => setBase('hillshade', 'btn-hillshade'));
 
-/* ── Overlay checkboxes ────────────────────────── */
 const overlayMap = {
     'chk-gmu':layers.gmu, 'chk-county':layers.county,
     'chk-mooseHabitat':layers.mooseHabitat, 'chk-coreHabitat':layers.coreHabitat,
     'chk-mooseSummer':layers.mooseSummer, 'chk-mooseWinter':layers.mooseWinter,
     'chk-mooseMigration':layers.mooseMigration, 'chk-mooseDaus':layers.mooseDaus,
     'chk-mooseGmus':layers.mooseGmus, 'chk-federal':layers.federal, 'chk-swa':layers.swa,
-    'chk-trails':layers.trails, 'chk-trailheads':layers.trailheads,
-    'chk-forestRoads':layers.forestRoads, 'chk-accessZone':layers.accessZone
+    'chk-trailheads':layers.trailheads, 'chk-accessZone':layers.accessZone
 };
-const subLegends = {
-    'chk-coreHabitat':'core-sublabel', 'chk-federal':'federal-sublabel',
-    'chk-swa':'swa-sublabel', 'chk-trails':'trails-sublabel', 'chk-forestRoads':'roads-sublabel'
-};
+const subLegends = { 'chk-coreHabitat':'core-sublabel', 'chk-federal':'federal-sublabel', 'chk-swa':'swa-sublabel' };
+
 Object.entries(overlayMap).forEach(([id, lg]) => {
     const chk = document.getElementById(id);
     if (!chk) return;
@@ -731,43 +924,75 @@ Object.entries(overlayMap).forEach(([id, lg]) => {
 });
 
 /* ════════════════════════════════════════════════
-   GPS LOCATE CONTROL
+   UNIT INFO DOCK — slide-up panel controller
+   States:
+     hidden  → #unit-dock display:none (no GMU selected)
+     docked  → tab visible, body collapsed
+     open    → tab + body both visible (expanded)
 ════════════════════════════════════════════════ */
-const LocateControl = L.Control.extend({
-    options: { position:'bottomleft' },
-    onAdd() {
-        const wrap = L.DomUtil.create('div');
-        wrap.innerHTML = `<div class="locate-btn" id="locate-btn" role="button" aria-label="Find my location" tabindex="0">
-            <svg width="17" height="17" viewBox="0 0 24 24" class="locate-icon">
-                <circle cx="12" cy="12" r="7"/>
-                <circle cx="12" cy="12" r="2.5" style="fill:#2c3e50;stroke:none;"/>
-                <line x1="12" y1="2"  x2="12" y2="5"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-                <line x1="2"  y1="12" x2="5"  y2="12"/>
-                <line x1="19" y1="12" x2="22" y2="12"/>
-            </svg>
-            <div class="locate-tip">Find My Location</div>
-        </div>`;
-        L.DomEvent.disableClickPropagation(wrap);
-        wrap.querySelector('#locate-btn').addEventListener('click', () => {
-            if (state.locating) return;
-            state.locating = true;
-            wrap.querySelector('#locate-btn').classList.add('active');
-            map.locate({ setView:true, maxZoom:14 });
-        });
-        return wrap;
-    }
+const unitDock       = document.getElementById('unit-dock');
+const unitDockBody   = document.getElementById('unit-dock-body');
+const unitDockScroll = document.getElementById('unit-dock-scroll');
+const unitDockArrow  = document.getElementById('unit-dock-arrow');
+const unitDockTab    = document.getElementById('unit-dock-tab');
+const unitDockTitle  = document.getElementById('unit-dock-tab-title');
+const unitDockSub    = document.getElementById('unit-dock-tab-sub');
+const dockMinBtn     = document.getElementById('dock-minimize-btn');
+const dockCloseBtn   = document.getElementById('dock-close-btn');
+
+let dockIsOpen = false;
+
+function openDock(content, titleText, subText) {
+    unitDockScroll.innerHTML = content;
+    unitDockTitle.textContent = titleText || 'Unit Info';
+    unitDockSub.textContent   = subText   || '';
+    unitDock.classList.add('active');
+    unitDockBody.classList.add('open');
+    unitDockArrow.classList.add('down');
+    dockIsOpen = true;
+    // Prevent map click from immediately re-closing
+    L.DomEvent.disableClickPropagation(unitDock);
+}
+
+function minimizeDock() {
+    unitDockBody.classList.remove('open');
+    unitDockArrow.classList.remove('down');
+    dockIsOpen = false;
+}
+
+function closeDock() {
+    minimizeDock();
+    setTimeout(() => unitDock.classList.remove('active'), 50);
+    state.currentSelection = null;
+    clearAllHovers();
+}
+
+// Tab click — toggles open/minimize (does NOT close)
+unitDockTab.addEventListener('click', e => {
+    if (e.target === dockMinBtn || e.target.closest('#dock-minimize-btn') ||
+        e.target === dockCloseBtn || e.target.closest('#dock-close-btn')) return;
+    if (!unitDock.classList.contains('active')) return;
+    dockIsOpen ? minimizeDock() : expandDock();
 });
-map.addControl(new LocateControl());
-map.on('locationfound', e => {
-    state.locating = false;
-    const btn = document.getElementById('locate-btn');
-    if (btn) btn.classList.remove('active');
-    if (state.locationMarker) map.removeLayer(state.locationMarker);
-    state.locationMarker = L.circleMarker(e.latlng, { radius:8, fillColor:'#3498db', color:'#fff', weight:2, fillOpacity:0.9 })
-        .addTo(map).bindPopup('<b>Your Location</b>').openPopup();
-});
-map.on('locationerror', () => { state.locating=false; const btn=document.getElementById('locate-btn'); if(btn) btn.classList.remove('active'); });
+
+function expandDock() {
+    unitDockBody.classList.add('open');
+    unitDockArrow.classList.add('down');
+    dockIsOpen = true;
+}
+
+dockMinBtn.addEventListener('click',   e => { e.stopPropagation(); minimizeDock(); });
+dockCloseBtn.addEventListener('click', e => { e.stopPropagation(); closeDock(); });
+
+// Map background click minimizes (not closes) so the tab stays accessible
+map.on('click', () => { if (dockIsOpen) minimizeDock(); });
+
+// Wrapper used by setupInteractions and zoomToGmu
+function showGmuPanel(content, gmuId, dauInfo) {
+    const titleText = gmuId ? `Unit ${gmuId}${dauInfo ? '  ·  DAU ' + dauInfo : ''}` : 'Unit Info';
+    const subText   = 'Colorado Game Management Unit';
+    openDock(content, titleText, subText);
+}
 
 /* ════════════════════════════════════════════════
    HOVER / SELECTION
@@ -784,14 +1009,17 @@ const setupInteractions = (layer, popupFn) => {
             L.DomEvent.stopPropagation(e);
             state.currentSelection = layer;
             clearAllHovers(); layer.setStyle(CONFIG.ACTIVE_STYLE); layer.bringToFront();
-            L.popup({ maxWidth:330, minWidth:308 }).setLatLng(e.latlng).setContent(popupFn(layer)).openOn(map);
+            const props = layer.feature?.properties || {};
+            const gmuId = props.GMUID || '';
+            const dauId = props.MOOSEDAU || '';
+            const content = popupFn(layer);
+            showGmuPanel(content, gmuId, dauId);
         }
     });
 };
 
 /* ════════════════════════════════════════════════
-   SPATIAL COVERAGE ANALYSIS
-   20×20 point-sample grid, ray-cast PIP, no deps.
+   SPATIAL COVERAGE — 20×20 grid PIP, no deps
 ════════════════════════════════════════════════ */
 function estimateCoverage(gmuLayer, rawFeatures, filterFn) {
     if (!rawFeatures?.length) return null;
@@ -799,13 +1027,11 @@ function estimateCoverage(gmuLayer, rawFeatures, filterFn) {
     const GRID=20, dLat=(b.getNorth()-b.getSouth())/GRID, dLng=(b.getEast()-b.getWest())/GRID;
     const candidates = filterFn ? rawFeatures.filter(filterFn) : rawFeatures;
     let inGmu=0, inTarget=0;
-    for (let i=0; i<=GRID; i++) {
-        for (let j=0; j<=GRID; j++) {
-            const pt = [b.getWest()+j*dLng, b.getSouth()+i*dLat];
-            if (!ptInGeom(pt, gmuLayer.feature.geometry)) continue;
-            inGmu++;
-            if (candidates.some(f => ptInGeom(pt, f.geometry))) inTarget++;
-        }
+    for (let i=0; i<=GRID; i++) for (let j=0; j<=GRID; j++) {
+        const pt=[b.getWest()+j*dLng, b.getSouth()+i*dLat];
+        if (!ptInGeom(pt, gmuLayer.feature.geometry)) continue;
+        inGmu++;
+        if (candidates.some(f => ptInGeom(pt, f.geometry))) inTarget++;
     }
     return inGmu===0 ? null : Math.round((inTarget/inGmu)*100);
 }
@@ -822,6 +1048,36 @@ function ptInPoly(pt, ring) {
         if (((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
     }
     return inside;
+}
+
+/* Haversine distance in miles between two [lng,lat] points */
+function distMiles(a, b) {
+    const R=3958.8, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(b[1]-a[1]), dLng=toRad(b[0]-a[0]);
+    const x=Math.sin(dLat/2)**2 + Math.cos(toRad(a[1]))*Math.cos(toRad(b[1]))*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+/* Find trailheads within 10 miles of the GMU centroid */
+function nearbyTrailheads(gmuLayer, maxMiles=10) {
+    if (!state.trailheadFeatures.length) return [];
+    const b = gmuLayer.getBounds();
+    const centroid = [
+        (b.getWest() + b.getEast()) / 2,
+        (b.getSouth() + b.getNorth()) / 2
+    ];
+    return state.trailheadFeatures
+        .filter(f => {
+            const c = f.geometry?.coordinates;
+            return c && distMiles(centroid, c) <= maxMiles;
+        })
+        .map(f => {
+            const p = f.properties;
+            const name = p.name||p.Name||p.NAME||p.TrlhdName||p.TrailheadName||p.TRAILHEADNAME||p.Trailhead_Name||p.trailhead_name||p.NAME_ALT||'Unnamed Trailhead';
+            const coords = f.geometry.coordinates;
+            return { name, coords };
+        })
+        .sort((a,b) => a.name.localeCompare(b.name));
 }
 
 /* ════════════════════════════════════════════════
@@ -842,20 +1098,22 @@ function buildGmuPopupContent(leafletLayer) {
     const dauInfo = props.MOOSEDAU ? `<span style="font-size:0.68em;opacity:0.55;margin-left:7px;">DAU ${props.MOOSEDAU}</span>` : '';
 
     const species = [
-        {name:'Elk',val:props.ELKDAU}, {name:'Deer',val:props.DEERDAU}, {name:'Pronghorn',val:props.ANTDAU},
-        {name:'Moose',val:props.MOOSEDAU}, {name:'Bear',val:props.BEARDAU}, {name:'Lion',val:props.LIONDAU}
+        {name:'Elk',val:props.ELKDAU},{name:'Deer',val:props.DEERDAU},{name:'Pronghorn',val:props.ANTDAU},
+        {name:'Moose',val:props.MOOSEDAU},{name:'Bear',val:props.BEARDAU},{name:'Lion',val:props.LIONDAU}
     ];
     const speciesHtml = species.map(s => {
         const v=String(s.val||'').trim(), ok=v.length>=2&&v!=='0'&&!v.includes('99');
         return `<div class="sp-chip ${ok?'yes':'no'}"><div class="sp-dot"></div>${s.name}</div>`;
     }).join('');
 
-    const noData = '<div style="font-size:0.75em;color:#aaa;padding:5px 0;">Load layer to compute.</div>';
+    const noData = '<div style="font-size:0.74em;color:#aaa;padding:4px 0;">Load layer to compute.</div>';
 
-    // Compute coverage asynchronously after popup renders
     setTimeout(() => {
-        const el = document.getElementById(`pu-cov-${gmuId}`);
+        // Target the fixed panel body div, not a floating popup element
+        const el = document.getElementById(`pu-cov-${gmuId}`) ||
+                   unitDockScroll.querySelector(`[id="pu-cov-${gmuId}"]`);
         if (!el) return;
+
         const { mooseHabitat:habF, coreHabitat:coreF, federal:fedF, swa:swaF, accessZone:azF } = state.rawGeoJSON;
 
         const hab = habF ? {
@@ -882,30 +1140,53 @@ function buildGmuPopupContent(leafletLayer) {
             park: estimateCoverage(leafletLayer, swaF, f=>f.properties.PropType==='SP')
         } : null;
 
-        // Access zones: single total % coverage
         const azTotal = azF ? estimateCoverage(leafletLayer, azF) : null;
 
-        el.innerHTML = `<div class="coverage-grid">
-            ${hab  ? renderCovCard('Habitat Quality', [{label:'Excellent',pct:hab.exc,color:'#1a6e3c'},{label:'Good',pct:hab.good,color:'#52b788'},{label:'Moderate',pct:hab.mod,color:'#95d5b2'},{label:'Low/Other',pct:hab.low,color:'#d4edda'}])
-                    : `<div class="cov-card"><div class="cov-card-title">Habitat Quality</div>${noData}</div>`}
-            ${core ? renderCovCard('Year-Round Range', [{label:'Primary',pct:core.lg,color:'#7b2d8b'},{label:'Secondary',pct:core.md,color:'#b85cc8'},{label:'Remnant',pct:core.sm,color:'#dba3e8'}])
-                    : `<div class="cov-card"><div class="cov-card-title">Year-Round Range</div>${noData}</div>`}
-            ${fed  ? renderCovCard('Federal Lands',   [{label:'USFS',pct:fed.usfs,color:'#27ae60'},{label:'BLM',pct:fed.blm,color:'#e67e22'},{label:'NPS',pct:fed.nps,color:'#9b59b6'}])
-                    : `<div class="cov-card"><div class="cov-card-title">Federal Lands</div>${noData}</div>`}
-            ${swa  ? renderCovCard('State Lands',     [{label:'SWA',pct:swa.swa,color:'#c8b400'},{label:'State Park',pct:swa.park,color:'#ff4444'}])
-                    : `<div class="cov-card"><div class="cov-card-title">State Lands</div>${noData}</div>`}
-        </div>
-        ${azTotal!=null ? `
-        <div class="pu-divider" style="margin:7px -15px;"></div>
-        <div class="pu-section-title">Trailhead Access Coverage</div>
-        <div class="cov-card" style="margin-top:0;">
-            <div class="cov-row"><span class="cov-label">Within 10-mi of a trailhead</span><span class="cov-pct">${azTotal}%</span></div>
-            <div class="cov-bar-track"><div class="cov-bar-fill" style="width:${azTotal}%;background:#f0a500;"></div></div>
-        </div>` : ''}`;
+        // Nearby trailheads list
+        const nearby = nearbyTrailheads(leafletLayer);
+        const thListHtml = nearby.length
+            ? `<ul class="th-list">${nearby.map(t =>
+                `<li data-lng="${t.coords[0]}" data-lat="${t.coords[1]}" class="th-item">${t.name}</li>`
+              ).join('')}</ul>`
+            : `<div class="th-list-empty">${state.trailheadFeatures.length ? 'No trailheads within 10 miles.' : 'Load trailheads layer to show access points.'}</div>`;
 
+        el.innerHTML = `
+            <div class="coverage-grid">
+                ${hab  ? renderCovCard('Habitat Quality',  [{label:'Excellent',pct:hab.exc,color:'#1a6e3c'},{label:'Good',pct:hab.good,color:'#52b788'},{label:'Moderate',pct:hab.mod,color:'#95d5b2'},{label:'Low/Other',pct:hab.low,color:'#d4edda'}])
+                        : `<div class="cov-card"><div class="cov-card-title">Habitat Quality</div>${noData}</div>`}
+                ${core ? renderCovCard('Year-Round Range', [{label:'Primary',pct:core.lg,color:'#7b2d8b'},{label:'Secondary',pct:core.md,color:'#b85cc8'},{label:'Remnant',pct:core.sm,color:'#dba3e8'}])
+                        : `<div class="cov-card"><div class="cov-card-title">Year-Round Range</div>${noData}</div>`}
+                ${fed  ? renderCovCard('Federal Lands',    [{label:'USFS',pct:fed.usfs,color:'#27ae60'},{label:'BLM',pct:fed.blm,color:'#e67e22'},{label:'NPS',pct:fed.nps,color:'#9b59b6'}])
+                        : `<div class="cov-card"><div class="cov-card-title">Federal Lands</div>${noData}</div>`}
+                ${swa  ? renderCovCard('State Lands',      [{label:'SWA',pct:swa.swa,color:'#c8b400'},{label:'State Park',pct:swa.park,color:'#ff4444'}])
+                        : `<div class="cov-card"><div class="cov-card-title">State Lands</div>${noData}</div>`}
+            </div>
+            ${azTotal!=null ? `
+            <div class="pu-divider" style="margin:7px -15px;"></div>
+            <div class="pu-section-title">Trailhead Access (10-mi Radius)</div>
+            <div class="cov-card" style="margin-bottom:6px;">
+                <div class="cov-row"><span class="cov-label">Unit area within 10 mi of a trailhead</span><span class="cov-pct">${azTotal}%</span></div>
+                <div class="cov-bar-track"><div class="cov-bar-fill" style="width:${azTotal}%;background:#f0a500;"></div></div>
+            </div>` : ''}
+            <div class="pu-section-title" style="margin-top:${azTotal!=null?'0':'8px'};">Nearby Trailheads (&le;10 mi)</div>
+            ${thListHtml}`;
+
+        // Animate bars
         requestAnimationFrame(() => el.querySelectorAll('.cov-bar-fill').forEach(bar => {
             const w=bar.style.width; bar.style.width='0'; requestAnimationFrame(()=>{ bar.style.width=w; });
         }));
+
+        // Wire up trailhead click-to-zoom
+        el.querySelectorAll('.th-item').forEach(li => {
+            li.addEventListener('click', () => {
+                const lat=parseFloat(li.dataset.lat), lng=parseFloat(li.dataset.lng);
+                if (!isNaN(lat)&&!isNaN(lng)) {
+                    map.closePopup();
+                    map.setView([lat,lng], 14, { animate:true });
+                }
+            });
+        });
+
     }, 10);
 
     return `
@@ -935,7 +1216,7 @@ const getMoosePopup = (props, label) => {
         .map(([k,v]) => `<tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">${k}</td><td>${v}</td></tr>`)
         .join('');
     return `<div style="padding:11px 15px 8px;border-bottom:2px solid #1a7a4a;">
-                <b style="font-size:1.05em;color:#1a7a4a;">🦌 ${label}</b></div>
+                <b style="color:#1a7a4a;">🦌 ${label}</b></div>
             <div style="padding:6px 15px 12px;">
                 <table style="font-size:0.82em;border-collapse:collapse;width:100%;max-width:280px;">
                     ${rows||'<tr><td style="color:#aaa">No attribute data</td></tr>'}
@@ -963,6 +1244,42 @@ const loadMooseLayer = async ({ path, stateKey, layerGroup, pane, fillColor, fil
     } catch(err) { console.warn(`⚠ ${label}:`, err.message); }
 };
 
+/* ── Boundary layer loader (DAUs, Moose GMUs) ──
+   These are large management unit polygons. Render as
+   labeled outlines with low fill so they don't obscure
+   underlying habitat layers. Completely avoids the
+   "random lines" artifact caused by rendering fills on
+   very large/complex MultiPolygons at state-wide zoom. */
+const loadBoundaryLayer = async ({ path, stateKey, layerGroup, pane, color, label, idField='NAME' }) => {
+    try {
+        const data = await fetch(path).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
+        state.geoJsonLayers[stateKey] = L.geoJSON(data, {
+            pane,
+            style: {
+                color,
+                weight: 2,
+                fillColor: color,
+                fillOpacity: 0.07,
+                dashArray: '6 4',
+                opacity: 0.85
+            },
+            onEachFeature: (f, layer) => {
+                const p = f.properties;
+                const id = p[idField] || p.DAU_NAME || p.DAU || p.GMUID || p.Name || p.NAME || '';
+                // Tooltip label on hover
+                if (id) layer.bindTooltip(`${label}: ${id}`, { className:'land-label', sticky:true });
+                // Popup with all attributes
+                layer.bindPopup(getMoosePopup(p, `${label}${id ? ' — '+id : ''}`));
+                layer.on({
+                    mouseover: ()=>{ layer.setStyle({ fillOpacity:0.18, weight:3 }); layer.bringToFront(); },
+                    mouseout:  ()=>state.geoJsonLayers[stateKey].resetStyle(layer)
+                });
+            }
+        }).addTo(layerGroup);
+        console.log(`✓ ${label}s (${data.features?.length||0} features)`);
+    } catch(err) { console.warn(`⚠ ${label}:`, err.message); }
+};
+
 /* ════════════════════════════════════════════════
    DATA LOADERS
 ════════════════════════════════════════════════ */
@@ -971,8 +1288,7 @@ const loadGmuData = async () => {
         const data = await fetch(CONFIG.DATA_PATHS.gmus).then(r=>r.json());
         state.gmuFeatures = data.features;
         state.geoJsonLayers.gmu = L.geoJSON(data, {
-            pane:'gmuPane',
-            style:{ color:'#000', weight:1, fillOpacity:0.05 },
+            pane:'gmuPane', style:{ color:'#000', weight:1, fillOpacity:0.05 },
             onEachFeature: (f,layer) => {
                 layer.bindTooltip(String(f.properties.GMUID), { permanent:true, direction:'center', className:'gmu-label' });
                 setupInteractions(layer, buildGmuPopupContent);
@@ -1006,15 +1322,13 @@ const loadCoreHabitatData = async () => {
             pane:'coreHabitatPane',
             style: f=>{ const c=CORE_COLORS[f.properties.habitat_tier]||CORE_COLORS['Small Core']; return {color:c.border,weight:1.2,fillColor:c.fill,fillOpacity:0.65}; },
             onEachFeature: (f,layer) => {
-                const p=f.properties, tier=p.habitat_tier||'—';
-                const c=CORE_COLORS[tier]||CORE_COLORS['Small Core'];
-                const displayLabel = c.label || tier;
+                const p=f.properties, tier=p.habitat_tier||'—', c=CORE_COLORS[tier]||CORE_COLORS['Small Core'];
                 layer.bindPopup(`<div style="padding:11px 15px 8px;border-bottom:2px solid ${c.fill};">
                     <b style="color:#2c3e50;">🦌 Year-Round Range</b></div>
-                    <div style="padding:6px 15px 12px;font-size:0.83em;">
+                    <div style="padding:6px 15px 12px;font-size:0.82em;">
                     <table style="border-collapse:collapse;width:100%;">
                         <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">Range Class</td>
-                            <td><span style="background:${c.fill};color:#fff;padding:1px 8px;border-radius:3px;font-weight:bold;">${displayLabel}</span></td></tr>
+                            <td><span style="background:${c.fill};color:#fff;padding:1px 8px;border-radius:3px;font-weight:bold;">${c.label}</span></td></tr>
                         <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">Area</td><td>${p.area_acres!=null?Number(p.area_acres).toLocaleString()+' ac':'—'}</td></tr>
                         <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">% of Summer Range</td><td>${p.pct_of_summer??'—'}%</td></tr>
                         <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">% of Winter Range</td><td>${p.pct_of_winter??'—'}%</td></tr>
@@ -1024,7 +1338,7 @@ const loadCoreHabitatData = async () => {
             }
         }).addTo(layers.coreHabitat);
         console.log('✓ Year-Round Range');
-    } catch(err) { console.warn('⚠ Year-Round Range (run build_core_habitat.py first):', err.message); }
+    } catch(err) { console.warn('⚠ Year-Round Range:', err.message); }
 };
 
 const loadCountyData = async () => {
@@ -1074,116 +1388,52 @@ const loadSwaData = async () => {
     } catch(err) { console.warn('⚠ SWAs:', err.message); }
 };
 
-/* ── Trailhead Access Zones (pre-processed GeoJSON) ── */
 const loadAccessZoneData = async () => {
     try {
         const data = await fetch(CONFIG.DATA_PATHS.accessZone).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
         state.rawGeoJSON.accessZone = data.features;
         state.geoJsonLayers.accessZone = L.geoJSON(data, {
             pane:'accessZonePane',
-            style:{ color:'#c17f00', weight:1, fillColor:'#f0a500', fillOpacity:0.18, dashArray:'4 4' }
+            style:{ color:'#c17f00', weight:1, fillColor:'#f0a500', fillOpacity:0.15, dashArray:'4 4' }
         }).addTo(layers.accessZone);
         console.log('✓ Trailhead Access Zones');
     } catch(err) { console.warn('⚠ Access Zones (run build_access_zones.py first):', err.message); }
 };
 
-/* ── CO TREX Trails (live API) ─────────────────── */
-const loadTrailData = async () => {
-    try {
-        console.log('⏳ Loading CO TREX Trails…');
-        const data = await fetch(CONFIG.API.trails).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
-        state.geoJsonLayers.trails = L.geoJSON(data, {
-            pane:'trailPane',
-            style: f => {
-                const type = f.properties.UseType || f.properties.USETYPE || '';
-                return { color:getTrailColor(type), weight:1.5, opacity:0.8 };
-            },
-            onEachFeature: (f,layer) => {
-                const p=f.properties;
-                const name = p.TrailName||p.TRAILNAME||p.Name||p.NAME||'Trail';
-                const use  = p.UseType  ||p.USETYPE  ||'—';
-                const surf = p.Surface  ||p.SURFACE  ||'—';
-                const diff = p.Difficulty||p.DIFFICULTY||'—';
-                layer.bindTooltip(name, { className:'trail-label', sticky:true });
-                layer.bindPopup(`<div style="padding:10px 14px;">
-                    <b style="color:#5d4037;">🥾 ${name}</b><br>
-                    <table style="font-size:0.82em;margin-top:5px;border-collapse:collapse;">
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Use Type</td><td>${use}</td></tr>
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Surface</td><td>${surf}</td></tr>
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Difficulty</td><td>${diff}</td></tr>
-                    </table></div>`);
-                layer.on({ mouseover:()=>layer.setStyle({weight:3,opacity:1}), mouseout:()=>state.geoJsonLayers.trails.resetStyle(layer) });
-            }
-        }).addTo(layers.trails);
-        console.log(`✓ CO TREX Trails (${data.features?.length||0} features)`);
-    } catch(err) { console.warn('⚠ Trails API:', err.message); }
-};
-
-/* ── CO TREX Trailheads (live API) ──────────────── */
+/* ── Trailheads (live API) — also store raw features for proximity query ── */
 const loadTrailheadData = async () => {
     try {
         console.log('⏳ Loading CO TREX Trailheads…');
         const data = await fetch(CONFIG.API.trailheads).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
+        // Store raw for proximity queries in popup
+        state.trailheadFeatures = (data.features||[]).filter(f => f.geometry?.type==='Point');
         state.geoJsonLayers.trailheads = L.geoJSON(data, {
             pane:'trailheadPane',
-            pointToLayer: (f, latlng) => L.circleMarker(latlng, {
-                radius:5, fillColor:'#e65100', color:'#bf360c', weight:1.5, fillOpacity:0.9
-            }),
+            pointToLayer: (f,latlng) => L.circleMarker(latlng, { radius:5, fillColor:'#e65100', color:'#bf360c', weight:1.5, fillOpacity:0.9 }),
             onEachFeature: (f,layer) => {
                 const p=f.properties;
-                const name   = p.TrailheadName||p.TRAILHEADNAME||p.Name||p.NAME||'Trailhead';
+                const name   = p.name||p.Name||p.NAME||p.TrlhdName||p.TrailheadName||p.TRAILHEADNAME||p.Trailhead_Name||p.trailhead_name||'Trailhead';
                 const mgmt   = p.ManagingOrg ||p.MANAGINGORG ||'—';
                 const access = p.AccessType  ||p.ACCESSTYPE  ||'—';
                 const park   = p.ParkingSpots||p.PARKINGSPOTS||'—';
-                layer.bindTooltip(name, { className:'trail-label' });
+                layer.bindTooltip(name, {className:'trail-label'});
                 layer.bindPopup(`<div style="padding:10px 14px;">
-                    <b style="color:#e65100;">📍 ${name}</b><br>
+                    <b style="color:#e65100;">📍 ${name}</b>
                     <table style="font-size:0.82em;margin-top:5px;border-collapse:collapse;">
                         <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Managed By</td><td>${mgmt}</td></tr>
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Access Type</td><td>${access}</td></tr>
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Parking</td><td>${park} spots</td></tr>
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Access</td><td>${access}</td></tr>
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Parking</td><td>${park}</td></tr>
                     </table></div>`);
+                // Click on trailhead marker zooms in
+                layer.on('click', e => {
+                    L.DomEvent.stopPropagation(e);
+                    map.setView(layer.getLatLng(), 14, {animate:true});
+                    layer.openPopup();
+                });
             }
         }).addTo(layers.trailheads);
-        console.log(`✓ Trailheads (${data.features?.length||0} features)`);
+        console.log(`✓ Trailheads (${state.trailheadFeatures.length})`);
     } catch(err) { console.warn('⚠ Trailheads API:', err.message); }
-};
-
-/* ── OSM Forest Roads (Overpass API) ────────────── */
-const loadForestRoadData = async () => {
-    try {
-        console.log('⏳ Loading OSM forest roads…');
-        const res  = await fetch(CONFIG.API.osmRoads);
-        if (!res.ok) throw Error(`HTTP ${res.status}`);
-        const json = await res.json();
-
-        // Convert Overpass JSON → GeoJSON LineStrings
-        const features = (json.elements||[])
-            .filter(el => el.type==='way' && el.geometry?.length > 1)
-            .map(el => ({
-                type:'Feature',
-                properties: el.tags||{},
-                geometry: {
-                    type:'LineString',
-                    coordinates: el.geometry.map(pt => [pt.lon, pt.lat])
-                }
-            }));
-
-        state.geoJsonLayers.forestRoads = L.geoJSON({ type:'FeatureCollection', features }, {
-            pane:'forestRoadPane',
-            style: f => {
-                const hw = f.properties.highway||'';
-                return { color: hw==='track'?'#5d4037':'#8d6e63', weight: hw==='track'?1.2:1, opacity:0.7, dashArray: hw==='track'?'3 4':undefined };
-            },
-            onEachFeature: (f,layer) => {
-                const p=f.properties;
-                const name = p.name||p.ref||p.highway||'Forest Road';
-                layer.bindTooltip(name, { className:'trail-label', sticky:true });
-                layer.on({ mouseover:()=>layer.setStyle({weight:2.5,opacity:1}), mouseout:()=>state.geoJsonLayers.forestRoads.resetStyle(layer) });
-            }
-        }).addTo(layers.forestRoads);
-        console.log(`✓ OSM Forest Roads (${features.length} ways)`);
-    } catch(err) { console.warn('⚠ OSM Forest Roads:', err.message); }
 };
 
 /* ════════════════════════════════════════════════
@@ -1195,30 +1445,32 @@ const zoomToGmu = id => {
     state.geoJsonLayers.gmu.eachLayer(layer => {
         if (String(layer.feature.properties.GMUID)===s) {
             state.currentSelection = layer;
-            clearAllHovers(); map.fitBounds(layer.getBounds());
-            L.popup({maxWidth:330,minWidth:308}).setLatLng(layer.getBounds().getCenter()).setContent(buildGmuPopupContent(layer)).openOn(map);
+            clearAllHovers();
+            layer.setStyle(CONFIG.ACTIVE_STYLE);
+            map.fitBounds(layer.getBounds(), { paddingTopLeft:[330,80], paddingBottomRight:[260,40] });
+            const props2 = layer.feature?.properties || {};
+            showGmuPanel(buildGmuPopupContent(layer), props2.GMUID||'', props2.MOOSEDAU||'');
         }
     });
 };
-map.on('click', () => { state.currentSelection=null; clearAllHovers(); });
+// map click is handled by the dock controller above (minimizeDock on open)
+map.on('click', () => { if (!dockIsOpen) { state.currentSelection=null; clearAllHovers(); } });
 
 /* ════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════ */
 (async () => {
     console.log('🗺  Colorado Moose Finder initializing…');
-    // Priority: default-on layers
     await Promise.all([loadGmuData(), loadMooseHabitatData()]);
-    // Background: all remaining
     Promise.all([
         loadCoreHabitatData(), loadFederalData(), loadSwaData(), loadCountyData(),
-        loadAccessZoneData(),
-        loadTrailData(), loadTrailheadData(), loadForestRoadData(),
+        loadAccessZoneData(), loadTrailheadData(),
         loadMooseLayer({path:CONFIG.DATA_PATHS.mooseSummer,    stateKey:'mooseSummer',    layerGroup:layers.mooseSummer,    pane:'mooseSummerPane',  fillColor:'#f39c12',fillOpacity:0.35,label:'Moose Summer Range'}),
         loadMooseLayer({path:CONFIG.DATA_PATHS.mooseWinter,    stateKey:'mooseWinter',    layerGroup:layers.mooseWinter,    pane:'mooseWinterPane',  fillColor:'#3498db',fillOpacity:0.35,label:'Moose Winter Range'}),
         loadMooseLayer({path:CONFIG.DATA_PATHS.mooseMigration, stateKey:'mooseMigration', layerGroup:layers.mooseMigration, pane:'mooseMigPane',     fillColor:'#9b59b6',fillOpacity:0.35,label:'Moose Migration Corridors'}),
-        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseDaus,      stateKey:'mooseDaus',      layerGroup:layers.mooseDaus,      pane:'mooseDauPane',     fillColor:'#e74c3c',fillOpacity:0.25,label:'Moose DAUs'}),
-        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseGmus,      stateKey:'mooseGmus',      layerGroup:layers.mooseGmus,      pane:'mooseGmuPane',     fillColor:'#1abc9c',fillOpacity:0.25,label:'Moose GMUs'})
+        // DAUs and GMUs get explicit loaders with labeled outlines (not filled) so large polygons render correctly
+        loadBoundaryLayer({ path:CONFIG.DATA_PATHS.mooseDaus,  stateKey:'mooseDaus',  layerGroup:layers.mooseDaus,  pane:'mooseDauPane',  color:'#e74c3c', label:'Moose DAU', idField:'DAU_NAME' }),
+        loadBoundaryLayer({ path:CONFIG.DATA_PATHS.mooseGmus,  stateKey:'mooseGmus',  layerGroup:layers.mooseGmus,  pane:'mooseGmuPane',  color:'#1abc9c', label:'Moose GMU', idField:'GMUID' })
     ]).then(() => console.log('✅ Colorado Moose Finder ready'));
 })();
 </script>
