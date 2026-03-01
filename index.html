@@ -1,282 +1,1226 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Colorado Hunting Map - Pro Insights</title>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colorado Moose Finder</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; }
-        #map { height: 100vh; width: 100vw; }
-        
-        .map-title, .leaflet-control-layers, .legend-widget, .custom-control {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px);
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            font-family: 'Segoe UI', sans-serif;
-            border: 1px solid rgba(0,0,0,0.1);
+        /* ── Reset & Base ────────────────────────────── */
+        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI', system-ui, sans-serif; overflow:hidden; }
+        #map { position:absolute; inset:0; z-index:1; }
+
+        /* ── Shared panel chrome ─────────────────────── */
+        .map-panel {
+            background:rgba(255,255,255,0.97);
+            backdrop-filter:blur(6px);
+            border-radius:8px;
+            box-shadow:0 2px 12px rgba(0,0,0,0.18);
+            border:1px solid rgba(0,0,0,0.1);
+            font-family:inherit;
         }
-
-        .map-title {
-            position: absolute; top: 10px; left: 50px; z-index: 1000;
-            padding: 15px; min-width: 250px;
+        .panel-header {
+            background:#2c3e50; color:#fff;
+            padding:9px 13px; cursor:pointer;
+            font-weight:700; font-size:0.88em;
+            display:flex; justify-content:space-between; align-items:center;
+            user-select:none; letter-spacing:0.02em;
         }
+        .panel-header-left { display:flex; align-items:center; gap:7px; }
+        .panel-header-arrow { font-size:0.75em; transition:transform 0.2s; flex-shrink:0; }
 
-        .leaflet-control-layers-expanded {
-            background: #2c3e50 !important;
-            color: white !important;
-            font-weight: 600;
-            padding: 12px !important;
+        /* ═══════════════════════════════════════════════
+           TITLE BAR — always visible, never collapses
+        ═══════════════════════════════════════════════ */
+        #title-bar {
+            position:absolute; top:10px; left:50px;
+            z-index:1001;
+            background:#2c3e50;
+            color:#fff;
+            padding:10px 16px;
+            border-radius:8px 8px 0 0;
+            font-weight:900;
+            font-size:1.05em;
+            letter-spacing:0.01em;
+            display:flex; align-items:center; gap:9px;
+            box-shadow:0 2px 12px rgba(0,0,0,0.22);
+            border:1px solid rgba(255,255,255,0.08);
+            border-bottom:none;
+            min-width:280px;
+            pointer-events:none;   /* title itself is not clickable — header below handles toggle */
         }
-
-        .locate-control {
-            width: 36px; height: 36px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; font-size: 28px; font-weight: bold;
-            color: #2c3e50; transition: all 0.2s;
+        #title-bar .title-icon {
+            width:22px; height:22px; flex-shrink:0;
+            filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));
         }
-        .locate-control:hover { background: #f4f4f4; color: #3498db; }
+        #title-bar .title-text { font-size:1.1em; letter-spacing:0.02em; }
+        #title-bar .title-sub  { font-size:0.6em; font-weight:400; opacity:0.6; margin-top:1px; }
 
-        .filter-group { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
-        .search-row { display: flex; gap: 5px; }
-        input, select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; font-family: inherit; }
-        input { flex-grow: 1; }
-        
-        button { padding: 8px 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        #search-btn { background: #e67e22; color: white; }
-        #search-btn:hover { background: #d35400; transform: translateY(-1px); }
-
-        .download-box { margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
-        .download-link {
-            display: flex; align-items: center; justify-content: center;
-            background: #27ae60; color: white; text-decoration: none;
-            padding: 10px; border-radius: 4px; font-size: 0.85em;
-            font-weight: bold; transition: background 0.2s;
+        /* ═══════════════════════════════════════════════
+           COMMAND PANEL (collapsible body under title)
+        ═══════════════════════════════════════════════ */
+        #cmd-panel {
+            position:absolute;
+            top:10px; left:50px;
+            z-index:1000;
+            width:280px;
         }
-        
-        .legend-widget { min-width: 180px; overflow: hidden; }
-        .legend-header { background: #2c3e50; color: white; padding: 10px 15px; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; }
-        .legend-content { padding: 12px; font-size: 0.9em; }
-        .legend-content.collapsed { display: none; }
-        .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
-        .legend-box { width: 16px; height: 16px; margin-right: 10px; border: 1px solid rgba(0,0,0,0.2); border-radius: 3px; }
-        
-        .leaflet-popup-content { font-family: 'Segoe UI', sans-serif; line-height: 1.4; min-width: 200px; }
-        .species-list { margin-top: 8px; padding: 5px; background: #f4f7f6; border-radius: 4px; border: 1px solid #eee; }
-        
-        .available { color: #27ae60; font-weight: bold; }
-        .unavailable { color: #e74c3c; font-weight: bold; }
+        /* The clickable collapse header sits flush under the title bar */
+        #cmd-header {
+            background:#374e63; color:#fff;
+            padding:6px 13px 6px 16px;
+            cursor:pointer;
+            font-size:0.72em; font-weight:700;
+            text-transform:uppercase; letter-spacing:0.07em;
+            display:flex; justify-content:space-between; align-items:center;
+            user-select:none;
+            /* offset to sit below the persistent title bar (~46px tall) */
+            margin-top:46px;
+            border-radius:0;
+        }
+        #cmd-body {
+            padding:10px 12px 12px;
+            border-radius:0 0 8px 8px;
+            background:rgba(255,255,255,0.97);
+            border:1px solid rgba(0,0,0,0.1);
+            border-top:none;
+            box-shadow:0 4px 12px rgba(0,0,0,0.15);
+        }
+        #cmd-body.collapsed { display:none; }
+        /* When body collapsed, round the header bottom */
+        #cmd-header.alone { border-radius:0 0 8px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
 
-        /* MOOSE STYLING */
-        .moose-popup-header { border-bottom: 2px solid #8e44ad; margin-bottom: 8px; padding-bottom: 4px; }
-        .quality-excellent { color: #8e44ad; font-weight: 900; }
-        .quality-high { color: #2980b9; font-weight: 900; }
-        .gmu-label { background: transparent; border: none; box-shadow: none; font-weight: bold; color: #000; font-size: 11px; text-shadow: 1px 1px 2px white; pointer-events: none; }
+        /* Search bar */
+        .search-wrap {
+            display:flex; align-items:center;
+            background:#f4f6f8; border:1px solid #dde2e8; border-radius:6px;
+            overflow:hidden; transition:border-color 0.15s;
+        }
+        .search-wrap:focus-within { border-color:#2c3e50; }
+        .search-wrap svg { margin:0 8px; flex-shrink:0; opacity:0.45; }
+        #gmu-search-input {
+            flex:1; border:none; background:transparent;
+            padding:7px 4px; font-size:0.84em; font-family:inherit;
+            color:#2c3e50; outline:none;
+        }
+        #gmu-search-input::placeholder { color:#aab; }
+        #search-btn {
+            background:#e67e22; color:#fff; border:none;
+            padding:7px 11px; font-size:0.78em; font-weight:700;
+            cursor:pointer; transition:background 0.15s; letter-spacing:0.02em;
+        }
+        #search-btn:hover { background:#cf6d17; }
+
+        /* Autocomplete */
+        #gmu-autocomplete {
+            display:none; position:absolute; left:0; right:0; top:calc(100% + 2px);
+            background:#fff; border:1px solid #dde2e8; border-radius:6px;
+            box-shadow:0 4px 14px rgba(0,0,0,0.12); z-index:9999;
+            max-height:180px; overflow-y:auto;
+        }
+        #gmu-autocomplete.visible { display:block; }
+        .ac-item { padding:7px 12px; font-size:0.83em; cursor:pointer; color:#2c3e50; border-bottom:1px solid #f2f2f2; }
+        .ac-item:last-child { border-bottom:none; }
+        .ac-item:hover, .ac-item.highlighted { background:#eaf1fb; }
+        .ac-item b { color:#e67e22; }
+
+        /* Section labels */
+        .cmd-section { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
+
+        /* Regulation table */
+        .reg-table { width:100%; border-collapse:collapse; font-size:0.76em; }
+        .reg-table td { padding:3px 6px 3px 0; vertical-align:top; color:#555; line-height:1.3; }
+        .reg-table td:first-child { font-weight:700; color:#2c3e50; white-space:nowrap; padding-right:8px; width:38%; }
+        .reg-divider { height:1px; background:#f0f0f0; margin:6px 0; }
+
+        /* Quick-links */
+        .quicklinks { display:flex; gap:5px; flex-wrap:wrap; }
+        .ql-btn {
+            display:inline-flex; align-items:center; gap:5px;
+            padding:5px 9px; font-size:0.75em; font-weight:600;
+            border-radius:5px; text-decoration:none; border:1px solid transparent;
+            cursor:pointer; transition:all 0.15s; white-space:nowrap;
+        }
+        .ql-btn.green  { background:#eafaf1; color:#1e8449; border-color:#a9dfbf; }
+        .ql-btn.green:hover  { background:#d5f5e3; }
+        .ql-btn.blue   { background:#ebf5fb; color:#1a5276; border-color:#a9cce3; }
+        .ql-btn.blue:hover   { background:#d6eaf8; }
+        .ql-btn.orange { background:#fef9e7; color:#935116; border-color:#f9e4b7; }
+        .ql-btn.orange:hover { background:#fdebd0; }
+        .ql-btn.grey   { background:#f4f6f7; color:#424949; border-color:#d5d8dc; }
+        .ql-btn.grey:hover   { background:#e8eaed; }
+        .ql-btn.red    { background:#c0392b; color:#fff; border-color:#a93226; }
+        .ql-btn.red:hover    { background:#a93226; }
+
+        /* ═══════════════════════════════════════════════
+           LAYER PANEL (top-right)
+        ═══════════════════════════════════════════════ */
+        #layer-panel { position:absolute; top:10px; right:10px; z-index:1000; width:235px; }
+        #layer-panel .panel-header { border-radius:8px 8px 0 0; }
+        #layer-panel-body { padding:5px 0 4px; max-height:82vh; overflow-y:auto; }
+        #layer-panel-body.collapsed { display:none; }
+        #layer-panel.body-hidden .panel-header { border-radius:8px; }
+
+        /* Basemap toggles */
+        .lp-basemap-row { display:flex; gap:4px; padding:5px 10px 7px; border-bottom:1px solid #eee; }
+        .lp-basemap-btn {
+            flex:1; padding:4px 2px; font-size:0.68em; font-weight:700;
+            border:1px solid #ccc; border-radius:4px; cursor:pointer;
+            background:#f4f4f4; color:#2c3e50; text-align:center; transition:all 0.15s;
+        }
+        .lp-basemap-btn.active { background:#2c3e50; color:#fff; border-color:#2c3e50; }
+
+        /* Group headers */
+        .lp-group-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:6px 10px 3px; cursor:pointer; user-select:none;
+            font-size:0.67em; font-weight:700; text-transform:uppercase;
+            letter-spacing:0.05em; color:#95a5a6; margin-top:3px;
+            border-top:1px solid #f0f0f0;
+        }
+        .lp-group-header:hover { color:#2c3e50; }
+        .lp-group-arrow { font-size:0.8em; transition:transform 0.2s; }
+        .lp-group-arrow.collapsed { transform:rotate(-90deg); }
+        .lp-group-body { padding:1px 10px 5px; }
+        .lp-group-body.collapsed { display:none; }
+
+        /* Layer rows */
+        .lp-row {
+            display:grid; grid-template-columns:15px 25px 1fr;
+            align-items:center; padding:3px 0; cursor:pointer;
+            font-size:0.82em; color:#2c3e50; line-height:1.3;
+        }
+        .lp-row:hover { color:#000; }
+        .lp-row input[type="checkbox"] { width:12px; height:12px; margin:0; cursor:pointer; accent-color:#2c3e50; display:block; }
+        .lp-symbol { display:flex; align-items:center; justify-content:center; width:25px; }
+        .lp-swatch { width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,0.18); display:block; }
+        .lp-line   { width:14px; height:3px; border-radius:2px; display:block; }
+        .lp-outline { width:14px; height:14px; border-radius:3px; border:2px solid #333; background:transparent; display:block; }
+        .lp-multi  { display:flex; width:18px; height:12px; border-radius:3px; overflow:hidden; }
+        .lp-multi span { flex:1; display:block; }
+        .lp-dot    { width:10px; height:10px; border-radius:50%; border:1px solid rgba(0,0,0,0.2); display:block; }
+        .lp-sublabel { grid-column:2/4; padding:1px 0 3px 2px; display:flex; flex-direction:column; gap:2px; }
+        .lp-subrow { display:flex; align-items:center; gap:5px; font-size:0.79em; color:#666; }
+        .lp-subrow .lp-swatch { width:11px; height:11px; }
+        .lp-subrow .lp-dot    { width:9px; height:9px; }
+        .lp-subrow .lp-line   { width:12px; }
+
+        /* ── GPS Locate ──────────────────────────────── */
+        .locate-btn {
+            display:flex; align-items:center; justify-content:center;
+            width:34px; height:34px; background:#fff;
+            border:2px solid rgba(0,0,0,0.2); border-radius:4px;
+            cursor:pointer; box-shadow:0 1px 5px rgba(0,0,0,0.2);
+            transition:background 0.15s,border-color 0.15s; position:relative;
+        }
+        .locate-btn:hover { background:#f0f7ff; border-color:#3498db; }
+        .locate-btn:hover .locate-icon { stroke:#3498db; }
+        .locate-btn:hover .locate-tip { opacity:1; }
+        .locate-btn.active { background:#ebf5fb; border-color:#2980b9; }
+        .locate-icon { stroke:#2c3e50; fill:none; stroke-width:1.6; transition:stroke 0.15s; }
+        .locate-tip {
+            position:absolute; left:42px; top:50%; transform:translateY(-50%);
+            background:#2c3e50; color:#fff; font-size:11px; padding:3px 8px;
+            border-radius:4px; white-space:nowrap; opacity:0; transition:opacity 0.15s; pointer-events:none; z-index:9999;
+        }
+        .locate-tip::before { content:''; position:absolute; right:100%; top:50%; transform:translateY(-50%); border:4px solid transparent; border-right-color:#2c3e50; }
+
+        /* ── Popup ───────────────────────────────────── */
+        .leaflet-popup-content-wrapper { border-radius:8px !important; padding:0 !important; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.18) !important; }
+        .leaflet-popup-content { font-family:inherit; line-height:1.4; margin:0 !important; width:308px !important; }
+        .leaflet-popup-tip-container { margin-top:-1px; }
+
+        .pu-header { background:#2c3e50; color:#fff; padding:11px 15px 10px; }
+        .pu-unit-label { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.65; margin-bottom:2px; }
+        .pu-unit-title { font-size:1.35em; font-weight:700; line-height:1.1; }
+        .pu-unit-subtitle { font-size:0.72em; opacity:0.6; margin-top:3px; }
+        .pu-body { padding:11px 15px; }
+        .pu-section-title { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
+        .pu-section-title:first-child { margin-top:0; }
+        .pu-divider { height:1px; background:#eee; margin:9px -15px; }
+
+        .species-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+        .sp-chip { display:flex; align-items:center; gap:4px; padding:3px 5px; border-radius:4px; font-size:0.76em; font-weight:600; }
+        .sp-chip.yes { background:#eafaf1; color:#1e8449; }
+        .sp-chip.no  { background:#fdfefe; color:#b0b8c1; border:1px solid #e8e8e8; }
+        .sp-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+        .sp-chip.yes .sp-dot { background:#27ae60; }
+        .sp-chip.no  .sp-dot { background:#ddd; }
+
+        .coverage-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+        .cov-card { background:#f8f9fa; border-radius:5px; padding:7px 9px; border:1px solid #eee; }
+        .cov-card-title { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#95a5a6; margin-bottom:4px; }
+        .cov-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; font-size:0.75em; }
+        .cov-row:last-child { margin-bottom:0; }
+        .cov-label { color:#555; flex:1; padding-right:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .cov-pct { font-weight:700; font-size:0.9em; color:#2c3e50; min-width:32px; text-align:right; }
+        .cov-bar-track { height:3px; border-radius:2px; background:#e0e0e0; margin-top:2px; overflow:hidden; }
+        .cov-bar-fill { height:100%; border-radius:2px; transition:width 0.4s ease; }
+        .pu-computing { display:flex; align-items:center; gap:8px; padding:8px 0; font-size:0.78em; color:#95a5a6; }
+        .pu-spinner { width:13px; height:13px; border-radius:50%; border:2px solid #ddd; border-top-color:#2c3e50; animation:spin 0.7s linear infinite; flex-shrink:0; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* ── Map labels ──────────────────────────────── */
+        .gmu-label,.land-label,.county-label { background:transparent !important; border:none !important; box-shadow:none !important; pointer-events:none; }
+        .gmu-label    { font-weight:bold; color:#000; font-size:11px; text-shadow:1px 1px 2px white; }
+        .land-label   { color:#2c3e50; font-size:10px; font-style:italic; }
+        .county-label { color:#c0392b !important; font-size:11px !important; font-weight:900 !important; text-transform:uppercase; white-space:nowrap; text-shadow:2px 2px 3px white,-2px -2px 3px white,2px -2px 3px white,-2px 2px 3px white; }
+
+        /* ── Trail / Trailhead styles ─────────────────── */
+        .trail-label { background:transparent !important; border:none !important; box-shadow:none !important; color:#5d4037; font-size:9px; font-style:italic; pointer-events:none; }
     </style>
 </head>
 <body>
+<div id="map"></div>
 
-<div class="map-title">
-    <h2 style="margin:0; color: #2c3e50; font-size: 1.4em;">Colorado Hunting Map</h2>
-    <div class="filter-group">
-        <label style="font-weight: bold; font-size: 0.8em; color: #7f8c8d;">SEARCH GMU:</label>
-        <div class="search-row">
-            <input type="text" id="gmu-search-input" placeholder="e.g. 6">
-            <button id="search-btn">Go</button>
-        </div>
-    </div>
-    <div class="filter-group">
-        <select id="gmu-select"><option value="">-- Select Unit --</option></select>
-    </div>
-    <div class="download-box">
-        <a href="docs/brochure_2026.pdf" target="_blank" class="download-link">
-            <span>📄 View 2026 Brochure</span>
-        </a>
+<!-- ══════════════════════════════════════════════
+     PERSISTENT TITLE BAR (always visible)
+══════════════════════════════════════════════ -->
+<div id="title-bar">
+    <!-- Scope/target SVG icon — relevant for hunting finder tool -->
+    <svg class="title-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="9" stroke="white" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="1.5" fill="white"/>
+        <line x1="12" y1="2" x2="12" y2="6" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="12" y1="18" x2="12" y2="22" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="2" y1="12" x2="6" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="18" y1="12" x2="22" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <div>
+        <div class="title-text">Colorado Moose Finder</div>
+        <div class="title-sub">Hunt Unit Intelligence · CPW Data</div>
     </div>
 </div>
 
-<div id="map"></div>
+<!-- ══════════════════════════════════════════════
+     COMMAND PANEL (collapsible, sits below title)
+══════════════════════════════════════════════ -->
+<div id="cmd-panel">
+    <div id="cmd-header">
+        <span>Unit Search &amp; Info</span>
+        <span class="panel-header-arrow" id="cmd-arrow">▼</span>
+    </div>
+    <div id="cmd-body">
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <!-- GMU Search -->
+        <div style="position:relative;" id="search-container">
+            <div class="search-wrap">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2c3e50" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+                <input type="text" id="gmu-search-input" placeholder="Search GMU number…" autocomplete="off" aria-label="Search GMU">
+                <button id="search-btn">GO</button>
+            </div>
+            <div id="gmu-autocomplete"></div>
+        </div>
+
+        <!-- Hunt Regulations -->
+        <div class="cmd-section">2026 Moose Hunt Regulations</div>
+        <table class="reg-table">
+            <tr><td>Season (Archery)</td><td>Sep 5 – Oct 3, 2026</td></tr>
+            <tr><td>Season (Rifle)</td><td>Oct 4 – Nov 1, 2026</td></tr>
+            <tr><td>License Type</td><td>Limited Draw only — no OTC</td></tr>
+            <tr><td>Legal Animals</td><td>Any Bull or Antlerless (by tag)</td></tr>
+            <tr><td>Antler Restr.</td><td>None — any legal moose</td></tr>
+        </table>
+        <div class="reg-divider"></div>
+        <table class="reg-table">
+            <tr><td>Legal Weapons</td><td>Bow (archery), rifle, muzzleloader</td></tr>
+            <tr><td>Orange Req.</td><td>500 sq in fluorescent orange required during rifle season</td></tr>
+            <tr><td>Shooting Hours</td><td>30 min before sunrise to 30 min after sunset</td></tr>
+            <tr><td>Tag Transfer</td><td>Non-transferable; hunter must be present</td></tr>
+            <tr><td>License Info</td><td>cpw.state.co.us — Draw results mid-June</td></tr>
+        </table>
+
+        <!-- Quick Links -->
+        <div class="cmd-section" style="margin-top:10px;">Resources</div>
+        <div class="quicklinks">
+            <a href="docs/brochure_2026.pdf" target="_blank" class="ql-btn green">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                2026 Brochure
+            </a>
+            <a href="https://cpw.state.co.us/thingstodo/Pages/MooseHunting.aspx" target="_blank" class="ql-btn blue">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                CPW Regs
+            </a>
+            <a href="https://www.cotrex.org/" target="_blank" class="ql-btn orange">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                CO TREX
+            </a>
+            <a href="https://cpw.state.co.us/thingstodo/Pages/Moose.aspx" target="_blank" class="ql-btn grey">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                Moose Info
+            </a>
+            <!-- onX Maps — red brand button with X logo -->
+            <a href="https://www.onxmaps.com/" target="_blank" class="ql-btn red">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- onX "X" mark logo approximation -->
+                    <line x1="4" y1="4" x2="20" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                    <line x1="20" y1="4" x2="4" y2="20" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                onX Maps
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     LAYER PANEL (top-right)
+══════════════════════════════════════════════ -->
+<div id="layer-panel" class="map-panel">
+    <div class="panel-header" id="layer-panel-header">
+        <span class="panel-header-left">Layer List</span>
+        <span class="panel-header-arrow" id="layer-panel-arrow">▼</span>
+    </div>
+    <div id="layer-panel-body">
+
+        <!-- Basemap toggles — Street / Satellite / Hillshade -->
+        <div class="lp-basemap-row">
+            <div class="lp-basemap-btn active" id="btn-osm">Street</div>
+            <div class="lp-basemap-btn" id="btn-satellite">Satellite</div>
+            <div class="lp-basemap-btn" id="btn-hillshade">Terrain</div>
+        </div>
+
+        <!-- Boundaries -->
+        <div class="lp-group-header" data-group="boundaries">Boundaries <span class="lp-group-arrow">▼</span></div>
+        <div class="lp-group-body" id="group-boundaries">
+            <label class="lp-row">
+                <input type="checkbox" id="chk-gmu" checked>
+                <span class="lp-symbol"><span class="lp-outline"></span></span>
+                GMU Boundaries
+            </label>
+            <label class="lp-row">
+                <input type="checkbox" id="chk-county">
+                <span class="lp-symbol"><span class="lp-line" style="background:#e74c3c;"></span></span>
+                County Lines
+            </label>
+        </div>
+
+        <!-- Moose Habitat & Range -->
+        <div class="lp-group-header" data-group="moose-habitat">Moose Habitat &amp; Range <span class="lp-group-arrow">▼</span></div>
+        <div class="lp-group-body" id="group-moose-habitat">
+            <label class="lp-row">
+                <input type="checkbox" id="chk-mooseHabitat" checked>
+                <span class="lp-symbol"><span class="lp-swatch" style="background:linear-gradient(to bottom,#1a6e3c,#52b788,#d4edda);"></span></span>
+                Habitat Quality
+            </label>
+            <div class="lp-sublabel" id="habitat-sublabel">
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#1a6e3c;"></span> Excellent</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#52b788;"></span> Good</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#95d5b2;"></span> Moderate</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#d4edda;"></span> Low / Other</div>
+            </div>
+
+            <!-- RENAMED: Year-Round Range with clear tier labels -->
+            <label class="lp-row">
+                <input type="checkbox" id="chk-coreHabitat">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span></span>
+                Year-Round Range
+            </label>
+            <div class="lp-sublabel" id="core-sublabel" style="display:none;">
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#7b2d8b;border-color:#4a1a54;"></span> Primary (≥5,000 ac)</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span> Secondary (1,000–4,999 ac)</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#dba3e8;border-color:#b85cc8;"></span> Remnant (&lt;1,000 ac)</div>
+            </div>
+
+            <label class="lp-row">
+                <input type="checkbox" id="chk-mooseSummer">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#f39c12;opacity:0.8;"></span></span>
+                Summer Range
+            </label>
+            <label class="lp-row">
+                <input type="checkbox" id="chk-mooseWinter">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#3498db;opacity:0.8;"></span></span>
+                Winter Range
+            </label>
+            <label class="lp-row">
+                <input type="checkbox" id="chk-mooseMigration">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#9b59b6;opacity:0.8;"></span></span>
+                Migration Corridors
+            </label>
+        </div>
+
+        <!-- Moose Mgmt Units -->
+        <div class="lp-group-header" data-group="moose-units">Moose Mgmt Units <span class="lp-group-arrow">▼</span></div>
+        <div class="lp-group-body" id="group-moose-units">
+            <label class="lp-row">
+                <input type="checkbox" id="chk-mooseDaus">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#e74c3c;opacity:0.65;"></span></span>
+                Data Analysis Units
+            </label>
+            <label class="lp-row">
+                <input type="checkbox" id="chk-mooseGmus">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#1abc9c;opacity:0.65;"></span></span>
+                Moose GMUs
+            </label>
+        </div>
+
+        <!-- Land Ownership -->
+        <div class="lp-group-header" data-group="land-ownership">Land Ownership <span class="lp-group-arrow">▼</span></div>
+        <div class="lp-group-body" id="group-land-ownership">
+            <label class="lp-row">
+                <input type="checkbox" id="chk-federal">
+                <span class="lp-symbol"><span class="lp-multi"><span style="background:#27ae60;"></span><span style="background:#e67e22;"></span><span style="background:#9b59b6;"></span></span></span>
+                Federal Lands
+            </label>
+            <div class="lp-sublabel" id="federal-sublabel" style="display:none;">
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#27ae60;"></span> US Forest Service</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#e67e22;"></span> BLM</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#9b59b6;"></span> NPS</div>
+            </div>
+            <label class="lp-row">
+                <input type="checkbox" id="chk-swa">
+                <span class="lp-symbol"><span class="lp-multi"><span style="background:#ffff00;border:1px solid #ccc;"></span><span style="background:#ff4444;"></span></span></span>
+                SWAs &amp; State Parks
+            </label>
+            <div class="lp-sublabel" id="swa-sublabel" style="display:none;">
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#ffff00;border:1px solid #aaa;"></span> State Wildlife Area</div>
+                <div class="lp-subrow"><span class="lp-swatch" style="background:#ff4444;"></span> State Park</div>
+            </div>
+        </div>
+
+        <!-- ══ NEW: Trails & Access ══ -->
+        <div class="lp-group-header" data-group="access">Trails &amp; Access <span class="lp-group-arrow">▼</span></div>
+        <div class="lp-group-body" id="group-access">
+
+            <!-- Trailhead Access Zones (buffered) -->
+            <label class="lp-row">
+                <input type="checkbox" id="chk-accessZone">
+                <span class="lp-symbol"><span class="lp-swatch" style="background:#f0a500;opacity:0.35;border-color:#c17f00;"></span></span>
+                Trailhead Access Zones
+            </label>
+
+            <!-- Trails -->
+            <label class="lp-row">
+                <input type="checkbox" id="chk-trails">
+                <span class="lp-symbol"><span class="lp-line" style="background:#8B4513;height:2px;"></span></span>
+                CO TREX Trails
+            </label>
+            <div class="lp-sublabel" id="trails-sublabel" style="display:none;">
+                <div class="lp-subrow"><span class="lp-line" style="background:#5d4037;height:2px;width:14px;"></span> Hiking</div>
+                <div class="lp-subrow"><span class="lp-line" style="background:#1565c0;height:2px;width:14px;"></span> OHV / ATV</div>
+                <div class="lp-subrow"><span class="lp-line" style="background:#2e7d32;height:2px;width:14px;"></span> Horse / Pack</div>
+                <div class="lp-subrow"><span class="lp-line" style="background:#888;height:2px;width:14px;"></span> Other</div>
+            </div>
+
+            <!-- Trailheads -->
+            <label class="lp-row">
+                <input type="checkbox" id="chk-trailheads">
+                <span class="lp-symbol"><span class="lp-dot" style="background:#e65100;border-color:#bf360c;"></span></span>
+                Trailheads
+            </label>
+
+            <!-- OSM Forest Roads -->
+            <label class="lp-row">
+                <input type="checkbox" id="chk-forestRoads">
+                <span class="lp-symbol"><span class="lp-line" style="background:#795548;height:3px;border-radius:1px;"></span></span>
+                Forest Roads
+            </label>
+            <div class="lp-sublabel" id="roads-sublabel" style="display:none;">
+                <div class="lp-subrow"><span class="lp-line" style="background:#5d4037;height:3px;width:14px;"></span> Track / Unpaved</div>
+                <div class="lp-subrow"><span class="lp-line" style="background:#8d6e63;height:2px;width:14px;"></span> Forest Service Rd</div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
 
 <script>
-    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' });
-    var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
+'use strict';
 
-    var map = L.map('map', { center: [39.0, -105.5], zoom: 7, layers: [osm] });
-
-    /* CREATE PANES FOR LAYER DEPTH */
-    map.createPane('countyPane'); map.getPane('countyPane').style.zIndex = 350;
-    map.createPane('federalPane'); map.getPane('federalPane').style.zIndex = 425;
-    map.createPane('gmuPane'); map.getPane('gmuPane').style.zIndex = 450;
-    map.createPane('enrichedMoosePane'); map.getPane('enrichedMoosePane').style.zIndex = 500; 
-    map.createPane('swaPane'); map.getPane('swaPane').style.zIndex = 550;
-    map.createPane('labelPane'); map.getPane('labelPane').style.zIndex = 650;
-
-    var countyLayer = L.layerGroup(); 
-    var fedLayer = L.layerGroup().addTo(map);
-    var gmuLayer = L.layerGroup().addTo(map);
-    var swaLayer = L.layerGroup().addTo(map);
-    var enrichedMooseLayer = L.layerGroup().addTo(map);
-
-    // Moose Specific Layer Groups
-    var mooseSummerLayer = L.layerGroup();
-    var mooseWinterLayer = L.layerGroup();
-    var mooseCorridorLayer = L.layerGroup();
-
-    var gmuGeojson, swaGeojson, countyGeojson, fedGeojson, enrichedMooseGeojson;
-
-    /* 1. ENRICHED MOOSE HABITAT (Hero Layer) */
-    fetch('data/processed/moose_habitat_enriched.geojson').then(res => res.json()).then(data => {
-        enrichedMooseGeojson = L.geoJSON(data, {
-            pane: 'enrichedMoosePane',
-            style: function(f) {
-                var props = {};
-                for (var key in f.properties) { props[key.toLowerCase()] = f.properties[key]; }
-                var quality = props.habitat_quality || 'Good';
-                var color = quality === 'Excellent' ? "#8e44ad" : (quality === 'High' ? "#2980b9" : "#34495e");
-                return { color: color, weight: 2, fillColor: color, fillOpacity: 0.6 };
-            },
-            onEachFeature: function(f, l) {
-                var p = {};
-                for (var key in f.properties) { p[key.toLowerCase()] = f.properties[key]; }
-                var unitVal = p.gmu_code || p.gmuid || p.unit_id || 'N/A';
-                var dauVal = p.dau_code || p.dauid || 'CO-Moose';
-                var qualityVal = p.habitat_quality || 'General';
-                var qualityClass = qualityVal === 'Excellent' ? 'quality-excellent' : 'quality-high';
-                l.bindPopup(`<div class="moose-popup-header"><b style="font-size: 1.1em; color: #8e44ad;">Enriched Moose Habitat</b></div><b>Unit:</b> ${unitVal}<br><b>DAU:</b> ${dauVal}<br><b>Quality:</b> <span class="${qualityClass}">${qualityVal}</span>`);
-            }
-        }).addTo(enrichedMooseLayer);
-    });
-
-    /* ADDING RAW MOOSE DATASETS */
-    // Summer Range
-    fetch('data/raw/moose/Moose_Summer_Range.geojson').then(res => res.json()).then(data => {
-        L.geoJSON(data, { style: { color: "#27ae60", weight: 1, fillOpacity: 0.3 } }).addTo(mooseSummerLayer);
-    });
-    // Winter Range
-    fetch('data/raw/moose/Moose_Winter_Range.geojson').then(res => res.json()).then(data => {
-        L.geoJSON(data, { style: { color: "#2980b9", weight: 1, fillOpacity: 0.3 } }).addTo(mooseWinterLayer);
-    });
-    // Migration Corridors
-    fetch('data/raw/moose/Moose_Migration_Corridors.geojson').then(res => res.json()).then(data => {
-        L.geoJSON(data, { style: { color: "#f1c40f", weight: 3, opacity: 0.8 } }).addTo(mooseCorridorLayer);
-    });
-
-    L.control.layers({"Street View": osm, "Satellite View": satellite}, 
-                     {
-                        "★ Enriched Moose Habitat": enrichedMooseLayer,
-                        "GMU Boundaries": gmuLayer,
-                        "SWAs & Parks": swaLayer, 
-                        "Federal Lands": fedLayer,
-                        "County": countyLayer,
-                        "Moose Summer Range": mooseSummerLayer,
-                        "Moose Winter Range": mooseWinterLayer,
-                        "Moose Corridors": mooseCorridorLayer
-                     }, 
-                     { collapsed: false }).addTo(map);
-
-    // 2. COUNTY
-    fetch('data/processed/county_co_CO.geojson').then(res => res.json()).then(data => {
-        countyGeojson = L.geoJSON(data, { pane: 'countyPane', style: { color: "#e74c3c", weight: 1.5, fillOpacity: 0 },
-            onEachFeature: function(f, l) {
-                var name = f.properties.COUNTY || f.properties.NAME || "";
-                var cleanName = name.replace(/County/gi, "").trim();
-                if (l.getBounds) {
-                    var center = l.getBounds().getCenter();
-                    L.marker(center, { opacity: 0, interactive: false }).bindTooltip(cleanName, { permanent: true, direction: 'center', className: 'county-label', pane: 'labelPane' }).addTo(countyLayer);
-                }
-            }
-        }).addTo(countyLayer);
-    });
-
-    // 4. FEDERAL
-    function getFedStyle(agency) {
-        switch (agency) {
-            case 'USFS': return { color: '#27ae60', opacity: 0.4 }; 
-            case 'BLM':  return { color: '#e67e22', opacity: 0.4 }; 
-            case 'NPS':  return { color: '#9b59b6', opacity: 0.4 }; 
-            default:     return { color: 'transparent', opacity: 0 }; 
-        }
+/* ════════════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════════════ */
+const CONFIG = {
+    MAP_CENTER: [39.0, -105.5],
+    MAP_ZOOM: 7,
+    ACTIVE_STYLE: { color:'#00FFFF', weight:6, fillOpacity:0 },
+    DATA_PATHS: {
+        gmus:           'data/processed/CPW_GMU_Boundary_BigGame_CO.geojson',
+        mooseHabitat:   'data/processed/moose_habitat_enriched.geojson',
+        coreHabitat:    'data/processed/Moose_Core_Habitat.geojson',
+        mooseDaus:      'data/processed/Moose_DAUs.geojson',
+        mooseGmus:      'data/processed/Moose_GMUs.geojson',
+        mooseMigration: 'data/processed/Moose_Migration_Corridors.geojson',
+        mooseSummer:    'data/processed/Moose_Summer_Range.geojson',
+        mooseWinter:    'data/processed/Moose_Winter_Range.geojson',
+        counties:       'data/processed/county_co_CO.geojson',
+        federal:        'data/processed/surface_management_agency_CO.geojson',
+        swas:           'data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson',
+        accessZone:     'data/processed/Moose_Trailhead_Access_Zones.geojson'
+    },
+    // Live ArcGIS REST APIs — paginated to first 2000 features
+    API: {
+        trails:     'https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/arcgis/rest/services/CPWAdminData/FeatureServer/15/query?outFields=*&where=1%3D1&resultRecordCount=2000&f=geojson',
+        trailheads: 'https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/arcgis/rest/services/CPWAdminData/FeatureServer/14/query?outFields=*&where=1%3D1&resultRecordCount=2000&f=geojson',
+        // Overpass — CO forest tracks & service roads (bbox: CO)
+        osmRoads: `https://overpass-api.de/api/interpreter?data=${encodeURIComponent('[out:json][timeout:60];(way["highway"~"track|unclassified|service"]["access"!="private"](36.99,-109.05,41.00,-102.04););out geom;')}`
     }
-    fetch('data/processed/surface_management_agency_CO.geojson').then(res => res.json()).then(data => {
-        fedGeojson = L.geoJSON(data, { pane: 'federalPane', interactive: false, style: function(f) { var s = getFedStyle(f.properties.ADMIN_AGEN); return { fillColor: s.color, fillOpacity: s.opacity, weight: 0 }; } }).addTo(fedLayer);
-    });
+};
 
-    // 5. GMU
-    fetch('data/processed/CPW_GMU_Boundary_BigGame_CO.geojson').then(res => res.json()).then(data => {
-        gmuGeojson = L.geoJSON(data, { pane: 'gmuPane', style: { color: "#000", weight: 1, fillOpacity: 0.05 },
-            onEachFeature: function(f, l) {
-                l.bindTooltip(f.properties.GMUID.toString(), { permanent: true, direction: 'center', className: 'gmu-label' });
-                var props = f.properties;
-                l.bindPopup(`<div class="moose-popup-header"><b>Unit ${props.GMUID}</b></div><div class="species-list">✓ Moose: ${props.MOOSEDAU}</div>`);
-            }
-        }).addTo(gmuLayer);
-        var gmuSelect = document.getElementById('gmu-select');
-        data.features.sort((a,b) => a.properties.GMUID - b.properties.GMUID).forEach(f => {
-            var opt = document.createElement('option'); opt.value = f.properties.GMUID; opt.innerHTML = "Unit " + f.properties.GMUID;
-            gmuSelect.appendChild(opt);
+/* ── Color helpers ─────────────────────────────── */
+const HAB_COLORS = { excellent:'#1a6e3c', good:'#52b788', moderate:'#95d5b2', default:'#d4edda' };
+const getHabColor = v => HAB_COLORS[String(v||'').toLowerCase().trim()] || HAB_COLORS.default;
+
+// RENAMED tiers with hunter-friendly labels
+const CORE_COLORS = {
+    'Large Core':  { fill:'#7b2d8b', border:'#4a1a54', label:'Primary Range' },
+    'Medium Core': { fill:'#b85cc8', border:'#7b2d8b', label:'Secondary Range' },
+    'Small Core':  { fill:'#dba3e8', border:'#b85cc8', label:'Remnant Range' }
+};
+
+const getTrailColor = type => {
+    if (!type) return '#888';
+    const t = type.toLowerCase();
+    if (t.includes('ohv') || t.includes('atv') || t.includes('motorized')) return '#1565c0';
+    if (t.includes('horse') || t.includes('equestrian') || t.includes('pack')) return '#2e7d32';
+    if (t.includes('hik') || t.includes('foot') || t.includes('pedestrian')) return '#5d4037';
+    return '#888';
+};
+
+/* ── Base layers ───────────────────────────────── */
+const baseLayers = {
+    osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    { attribution:'&copy; OpenStreetMap contributors', maxZoom:19 }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    { attribution:'Tiles &copy; Esri', maxZoom:19 }),
+    // USGS National Map Shadded Relief — best free hillshade for CONUS
+    hillshade: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}',
+                    { attribution:'USGS National Map', maxZoom:16, opacity:0.9 })
+};
+
+/* ── Map ───────────────────────────────────────── */
+const map = L.map('map', { center:CONFIG.MAP_CENTER, zoom:CONFIG.MAP_ZOOM, layers:[baseLayers.osm], zoomControl:true });
+
+/* ── Panes ─────────────────────────────────────── */
+const PANES = {
+    forestRoadPane:330, accessZonePane:340,
+    federalPane:350, countyPane:360,
+    mooseWinterPane:370, mooseSummerPane:375,
+    mooseMigPane:380, mooseHabitatPane:385, coreHabitatPane:388,
+    mooseDauPane:390, mooseGmuPane:395, gmuPane:400,
+    swaPane:450, trailPane:460, trailheadPane:470, labelPane:650
+};
+Object.entries(PANES).forEach(([n,z]) => { map.createPane(n); map.getPane(n).style.zIndex = z; });
+
+/* ── Layer groups ──────────────────────────────── */
+const layers = {
+    gmu: L.layerGroup().addTo(map),
+    mooseHabitat: L.layerGroup().addTo(map),
+    coreHabitat: L.layerGroup(),
+    mooseDaus: L.layerGroup(), mooseGmus: L.layerGroup(),
+    mooseMigration: L.layerGroup(), mooseSummer: L.layerGroup(), mooseWinter: L.layerGroup(),
+    county: L.layerGroup(), federal: L.layerGroup(), swa: L.layerGroup(),
+    trails: L.layerGroup(), trailheads: L.layerGroup(),
+    forestRoads: L.layerGroup(), accessZone: L.layerGroup()
+};
+
+/* ── State ─────────────────────────────────────── */
+const state = {
+    geoJsonLayers: Object.fromEntries(Object.keys(layers).map(k=>[k,null])),
+    rawGeoJSON: { mooseHabitat:null, coreHabitat:null, federal:null, swa:null, accessZone:null },
+    gmuFeatures: [],
+    currentSelection: null, locationMarker: null, locating: false
+};
+
+/* ════════════════════════════════════════════════
+   COMMAND PANEL — title bar + collapse logic
+════════════════════════════════════════════════ */
+const cmdHeader = document.getElementById('cmd-header');
+const cmdBody   = document.getElementById('cmd-body');
+const cmdArrow  = document.getElementById('cmd-arrow');
+
+cmdHeader.addEventListener('click', () => {
+    const collapsed = cmdBody.classList.toggle('collapsed');
+    cmdArrow.textContent = collapsed ? '▲' : '▼';
+    cmdHeader.classList.toggle('alone', collapsed);
+});
+
+/* ── Autocomplete search ───────────────────────── */
+const acEl     = document.getElementById('gmu-autocomplete');
+const searchEl = document.getElementById('gmu-search-input');
+let acIndex = -1;
+
+function showAutocomplete(query) {
+    if (!query || !state.gmuFeatures.length) { acEl.classList.remove('visible'); return; }
+    const q = query.toLowerCase();
+    const matches = state.gmuFeatures.filter(f => String(f.properties.GMUID).includes(q)).slice(0, 8);
+    if (!matches.length) { acEl.classList.remove('visible'); return; }
+    acEl.innerHTML = matches.map((f,i) => {
+        const id = f.properties.GMUID;
+        const hl = String(id).replace(new RegExp(`(${q})`, 'gi'), '<b>$1</b>');
+        return `<div class="ac-item" data-id="${id}" data-index="${i}">Unit ${hl}</div>`;
+    }).join('');
+    acEl.classList.add('visible');
+    acIndex = -1;
+    acEl.querySelectorAll('.ac-item').forEach(item => {
+        item.addEventListener('mousedown', e => { e.preventDefault(); zoomToGmu(item.dataset.id); acEl.classList.remove('visible'); searchEl.value = `Unit ${item.dataset.id}`; });
+    });
+}
+searchEl.addEventListener('input',  e => showAutocomplete(e.target.value.trim()));
+searchEl.addEventListener('blur',   () => setTimeout(() => acEl.classList.remove('visible'), 150));
+searchEl.addEventListener('keydown', e => {
+    const items = acEl.querySelectorAll('.ac-item');
+    if      (e.key === 'ArrowDown')  { acIndex = Math.min(acIndex+1, items.length-1); }
+    else if (e.key === 'ArrowUp')    { acIndex = Math.max(acIndex-1, 0); }
+    else if (e.key === 'Enter') {
+        if (acIndex >= 0 && items[acIndex]) { const id=items[acIndex].dataset.id; zoomToGmu(id); acEl.classList.remove('visible'); searchEl.value=`Unit ${id}`; }
+        else zoomToGmu(searchEl.value.trim());
+        return;
+    } else return;
+    items.forEach((el,i) => el.classList.toggle('highlighted', i===acIndex));
+});
+document.getElementById('search-btn').addEventListener('click', () => { zoomToGmu(searchEl.value.trim()); acEl.classList.remove('visible'); });
+
+/* ════════════════════════════════════════════════
+   LAYER PANEL
+════════════════════════════════════════════════ */
+document.getElementById('layer-panel-header').addEventListener('click', () => {
+    const body = document.getElementById('layer-panel-body');
+    const col  = body.classList.toggle('collapsed');
+    document.getElementById('layer-panel').classList.toggle('body-hidden', col);
+    document.getElementById('layer-panel-arrow').textContent = col ? '▲' : '▼';
+});
+document.querySelectorAll('.lp-group-header').forEach(hdr => {
+    hdr.addEventListener('click', () => {
+        document.getElementById('group-' + hdr.dataset.group).classList.toggle('collapsed');
+        hdr.querySelector('.lp-group-arrow').classList.toggle('collapsed');
+    });
+});
+
+/* ── Basemap toggle ────────────────────────────── */
+let activeBase = baseLayers.osm;
+function setBase(key, btnId) {
+    if (activeBase !== baseLayers[key]) { map.removeLayer(activeBase); map.addLayer(baseLayers[key]); activeBase = baseLayers[key]; }
+    document.querySelectorAll('.lp-basemap-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(btnId).classList.add('active');
+}
+document.getElementById('btn-osm').addEventListener('click',       () => setBase('osm',       'btn-osm'));
+document.getElementById('btn-satellite').addEventListener('click', () => setBase('satellite', 'btn-satellite'));
+document.getElementById('btn-hillshade').addEventListener('click', () => setBase('hillshade', 'btn-hillshade'));
+
+/* ── Overlay checkboxes ────────────────────────── */
+const overlayMap = {
+    'chk-gmu':layers.gmu, 'chk-county':layers.county,
+    'chk-mooseHabitat':layers.mooseHabitat, 'chk-coreHabitat':layers.coreHabitat,
+    'chk-mooseSummer':layers.mooseSummer, 'chk-mooseWinter':layers.mooseWinter,
+    'chk-mooseMigration':layers.mooseMigration, 'chk-mooseDaus':layers.mooseDaus,
+    'chk-mooseGmus':layers.mooseGmus, 'chk-federal':layers.federal, 'chk-swa':layers.swa,
+    'chk-trails':layers.trails, 'chk-trailheads':layers.trailheads,
+    'chk-forestRoads':layers.forestRoads, 'chk-accessZone':layers.accessZone
+};
+const subLegends = {
+    'chk-coreHabitat':'core-sublabel', 'chk-federal':'federal-sublabel',
+    'chk-swa':'swa-sublabel', 'chk-trails':'trails-sublabel', 'chk-forestRoads':'roads-sublabel'
+};
+Object.entries(overlayMap).forEach(([id, lg]) => {
+    const chk = document.getElementById(id);
+    if (!chk) return;
+    chk.addEventListener('change', () => {
+        chk.checked ? map.addLayer(lg) : map.removeLayer(lg);
+        if (subLegends[id]) {
+            const el = document.getElementById(subLegends[id]);
+            el.style.display = chk.checked ? 'flex' : 'none';
+            if (chk.checked) el.style.flexDirection = 'column';
+        }
+    });
+    chk.closest('.lp-row').addEventListener('click', e => e.stopPropagation());
+});
+
+/* ════════════════════════════════════════════════
+   GPS LOCATE CONTROL
+════════════════════════════════════════════════ */
+const LocateControl = L.Control.extend({
+    options: { position:'bottomleft' },
+    onAdd() {
+        const wrap = L.DomUtil.create('div');
+        wrap.innerHTML = `<div class="locate-btn" id="locate-btn" role="button" aria-label="Find my location" tabindex="0">
+            <svg width="17" height="17" viewBox="0 0 24 24" class="locate-icon">
+                <circle cx="12" cy="12" r="7"/>
+                <circle cx="12" cy="12" r="2.5" style="fill:#2c3e50;stroke:none;"/>
+                <line x1="12" y1="2"  x2="12" y2="5"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+                <line x1="2"  y1="12" x2="5"  y2="12"/>
+                <line x1="19" y1="12" x2="22" y2="12"/>
+            </svg>
+            <div class="locate-tip">Find My Location</div>
+        </div>`;
+        L.DomEvent.disableClickPropagation(wrap);
+        wrap.querySelector('#locate-btn').addEventListener('click', () => {
+            if (state.locating) return;
+            state.locating = true;
+            wrap.querySelector('#locate-btn').classList.add('active');
+            map.locate({ setView:true, maxZoom:14 });
         });
-        function zoomTo(id) {
-            gmuGeojson.eachLayer(l => { if(l.feature.properties.GMUID.toString() === id.toString()) { map.fitBounds(l.getBounds()); l.openPopup(); } });
-        }
-        gmuSelect.onchange = (e) => zoomTo(e.target.value);
-        document.getElementById('search-btn').onclick = () => zoomTo(document.getElementById('gmu-search-input').value);
-    });
-
-    // 6. SWA
-    fetch('data/processed/CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson').then(res => res.json()).then(data => {
-        swaGeojson = L.geoJSON(data, { pane: 'swaPane', style: function(f) { var isPark = f.properties.PropType === "SP"; return { color: "#333", weight: 0.8, fillColor: isPark ? "#ff0000" : "#ffff00", fillOpacity: 0.7 }; },
-            onEachFeature: function(f, l) { l.bindTooltip(f.properties.PropName, { className: 'land-label' }); l.bindPopup(`<b>${f.properties.PropName}</b>`); }
-        }).addTo(swaLayer);
-    });
-
-    // 7. LOCATE
-    var LocateControl = L.Control.extend({ options: { position: 'bottomleft' }, onAdd: function (map) { var container = L.DomUtil.create('div', 'custom-control locate-control'); container.innerHTML = '⌖'; container.onclick = function(e) { L.DomEvent.stopPropagation(e); map.locate({setView: true, maxZoom: 14}); }; return container; } });
-    map.addControl(new LocateControl());
-
-    // 8. LEGEND
-    var legendWidget = L.control({position: 'bottomright'});
-    legendWidget.onAdd = function() {
-        var div = L.DomUtil.create('div', 'legend-widget');
-        div.innerHTML = `<div class="legend-header" id="legend-toggle">Legend <span>▼</span></div><div class="legend-content" id="legend-body"></div>`;
-        return div;
-    };
-    legendWidget.addTo(map);
-
-    function updateLegend() {
-        var body = document.getElementById('legend-body');
-        var html = '';
-        if (map.hasLayer(enrichedMooseLayer)) {
-            html += `<b style="display:block;margin-top:5px; color:#8e44ad">Moose Insights</b>
-                     <div class="legend-item"><div class="legend-box" style="background:#8e44ad"></div>Excellent Habitat</div>
-                     <div class="legend-item"><div class="legend-box" style="background:#2980b9"></div>High Quality Area</div>`;
-        }
-        if (map.hasLayer(gmuLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:rgba(0,0,0,0.1)"></div>GMU Boundaries</div>`;
-        if (map.hasLayer(fedLayer)) {
-            html += `<b style="display:block;margin-top:5px">Federal Agencies</b>
-                     <div class="legend-item"><div class="legend-box" style="background:#27ae60"></div>US Forest Service</div>
-                     <div class="legend-item"><div class="legend-box" style="background:#e67e22"></div>BLM</div>`;
-        }
-        
-        if (map.hasLayer(mooseSummerLayer) || map.hasLayer(mooseWinterLayer) || map.hasLayer(mooseCorridorLayer)) {
-            html += `<b style="display:block;margin-top:5px; border-top: 1px solid #ddd; padding-top: 5px;">Raw Moose Data</b>`;
-            if (map.hasLayer(mooseSummerLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#27ae60; opacity:0.6;"></div>Summer Range</div>`;
-            if (map.hasLayer(mooseWinterLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#2980b9; opacity:0.6;"></div>Winter Range</div>`;
-            if (map.hasLayer(mooseCorridorLayer)) html += `<div class="legend-item"><div class="legend-box" style="background:#f1c40f; height: 3px; border:none;"></div>Migration Corridor</div>`;
-        }
-
-        body.innerHTML = html || 'No active layers';
+        return wrap;
     }
+});
+map.addControl(new LocateControl());
+map.on('locationfound', e => {
+    state.locating = false;
+    const btn = document.getElementById('locate-btn');
+    if (btn) btn.classList.remove('active');
+    if (state.locationMarker) map.removeLayer(state.locationMarker);
+    state.locationMarker = L.circleMarker(e.latlng, { radius:8, fillColor:'#3498db', color:'#fff', weight:2, fillOpacity:0.9 })
+        .addTo(map).bindPopup('<b>Your Location</b>').openPopup();
+});
+map.on('locationerror', () => { state.locating=false; const btn=document.getElementById('locate-btn'); if(btn) btn.classList.remove('active'); });
 
-    document.getElementById('legend-toggle').onclick = function() {
-        document.getElementById('legend-body').classList.toggle('collapsed');
-        this.querySelector('span').innerHTML = document.getElementById('legend-body').classList.contains('collapsed') ? '▲' : '▼';
-    };
+/* ════════════════════════════════════════════════
+   HOVER / SELECTION
+════════════════════════════════════════════════ */
+const clearAllHovers = () => {
+    Object.values(state.geoJsonLayers).forEach(l => { if (l?.resetStyle) l.resetStyle(); });
+    if (state.currentSelection) state.currentSelection.setStyle(CONFIG.ACTIVE_STYLE);
+};
+const setupInteractions = (layer, popupFn) => {
+    layer.on({
+        mouseover: () => { clearAllHovers(); layer.setStyle(CONFIG.ACTIVE_STYLE); layer.bringToFront(); },
+        mouseout:  () => clearAllHovers(),
+        click: e => {
+            L.DomEvent.stopPropagation(e);
+            state.currentSelection = layer;
+            clearAllHovers(); layer.setStyle(CONFIG.ACTIVE_STYLE); layer.bringToFront();
+            L.popup({ maxWidth:330, minWidth:308 }).setLatLng(e.latlng).setContent(popupFn(layer)).openOn(map);
+        }
+    });
+};
 
-    map.on('overlayadd overlayremove', updateLegend);
-    updateLegend();
+/* ════════════════════════════════════════════════
+   SPATIAL COVERAGE ANALYSIS
+   20×20 point-sample grid, ray-cast PIP, no deps.
+════════════════════════════════════════════════ */
+function estimateCoverage(gmuLayer, rawFeatures, filterFn) {
+    if (!rawFeatures?.length) return null;
+    const b = gmuLayer.getBounds();
+    const GRID=20, dLat=(b.getNorth()-b.getSouth())/GRID, dLng=(b.getEast()-b.getWest())/GRID;
+    const candidates = filterFn ? rawFeatures.filter(filterFn) : rawFeatures;
+    let inGmu=0, inTarget=0;
+    for (let i=0; i<=GRID; i++) {
+        for (let j=0; j<=GRID; j++) {
+            const pt = [b.getWest()+j*dLng, b.getSouth()+i*dLat];
+            if (!ptInGeom(pt, gmuLayer.feature.geometry)) continue;
+            inGmu++;
+            if (candidates.some(f => ptInGeom(pt, f.geometry))) inTarget++;
+        }
+    }
+    return inGmu===0 ? null : Math.round((inTarget/inGmu)*100);
+}
+function ptInGeom(pt, geom) {
+    if (!geom) return false;
+    if (geom.type==='Polygon')      return ptInPoly(pt, geom.coordinates[0]);
+    if (geom.type==='MultiPolygon') return geom.coordinates.some(p => ptInPoly(pt, p[0]));
+    return false;
+}
+function ptInPoly(pt, ring) {
+    const [x,y]=pt; let inside=false;
+    for (let i=0,j=ring.length-1; i<ring.length; j=i++) {
+        const [xi,yi]=ring[i],[xj,yj]=ring[j];
+        if (((yi>y)!==(yj>y)) && (x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+    return inside;
+}
+
+/* ════════════════════════════════════════════════
+   GMU POPUP
+════════════════════════════════════════════════ */
+function renderCovCard(title, rows) {
+    return `<div class="cov-card"><div class="cov-card-title">${title}</div>${
+        rows.map(r => `
+            <div class="cov-row"><span class="cov-label">${r.label}</span><span class="cov-pct">${r.pct!=null?r.pct+'%':'—'}</span></div>
+            ${r.pct!=null?`<div class="cov-bar-track"><div class="cov-bar-fill" style="width:${r.pct}%;background:${r.color};"></div></div>`:''}`
+        ).join('')
+    }</div>`;
+}
+
+function buildGmuPopupContent(leafletLayer) {
+    const props = leafletLayer.feature.properties;
+    const gmuId = props.GMUID;
+    const dauInfo = props.MOOSEDAU ? `<span style="font-size:0.68em;opacity:0.55;margin-left:7px;">DAU ${props.MOOSEDAU}</span>` : '';
+
+    const species = [
+        {name:'Elk',val:props.ELKDAU}, {name:'Deer',val:props.DEERDAU}, {name:'Pronghorn',val:props.ANTDAU},
+        {name:'Moose',val:props.MOOSEDAU}, {name:'Bear',val:props.BEARDAU}, {name:'Lion',val:props.LIONDAU}
+    ];
+    const speciesHtml = species.map(s => {
+        const v=String(s.val||'').trim(), ok=v.length>=2&&v!=='0'&&!v.includes('99');
+        return `<div class="sp-chip ${ok?'yes':'no'}"><div class="sp-dot"></div>${s.name}</div>`;
+    }).join('');
+
+    const noData = '<div style="font-size:0.75em;color:#aaa;padding:5px 0;">Load layer to compute.</div>';
+
+    // Compute coverage asynchronously after popup renders
+    setTimeout(() => {
+        const el = document.getElementById(`pu-cov-${gmuId}`);
+        if (!el) return;
+        const { mooseHabitat:habF, coreHabitat:coreF, federal:fedF, swa:swaF, accessZone:azF } = state.rawGeoJSON;
+
+        const hab = habF ? {
+            exc:  estimateCoverage(leafletLayer, habF, f=>f.properties.habitat_quality?.toLowerCase()==='excellent'),
+            good: estimateCoverage(leafletLayer, habF, f=>f.properties.habitat_quality?.toLowerCase()==='good'),
+            mod:  estimateCoverage(leafletLayer, habF, f=>f.properties.habitat_quality?.toLowerCase()==='moderate'),
+            low:  estimateCoverage(leafletLayer, habF, f=>{ const q=f.properties.habitat_quality?.toLowerCase(); return q&&!['excellent','good','moderate'].includes(q); })
+        } : null;
+
+        const core = coreF ? {
+            lg: estimateCoverage(leafletLayer, coreF, f=>f.properties.habitat_tier==='Large Core'),
+            md: estimateCoverage(leafletLayer, coreF, f=>f.properties.habitat_tier==='Medium Core'),
+            sm: estimateCoverage(leafletLayer, coreF, f=>f.properties.habitat_tier==='Small Core')
+        } : null;
+
+        const fed = fedF ? {
+            usfs: estimateCoverage(leafletLayer, fedF, f=>f.properties.ADMIN_AGEN==='USFS'),
+            blm:  estimateCoverage(leafletLayer, fedF, f=>f.properties.ADMIN_AGEN==='BLM'),
+            nps:  estimateCoverage(leafletLayer, fedF, f=>f.properties.ADMIN_AGEN==='NPS')
+        } : null;
+
+        const swa = swaF ? {
+            swa:  estimateCoverage(leafletLayer, swaF, f=>f.properties.PropType!=='SP'),
+            park: estimateCoverage(leafletLayer, swaF, f=>f.properties.PropType==='SP')
+        } : null;
+
+        // Access zones: single total % coverage
+        const azTotal = azF ? estimateCoverage(leafletLayer, azF) : null;
+
+        el.innerHTML = `<div class="coverage-grid">
+            ${hab  ? renderCovCard('Habitat Quality', [{label:'Excellent',pct:hab.exc,color:'#1a6e3c'},{label:'Good',pct:hab.good,color:'#52b788'},{label:'Moderate',pct:hab.mod,color:'#95d5b2'},{label:'Low/Other',pct:hab.low,color:'#d4edda'}])
+                    : `<div class="cov-card"><div class="cov-card-title">Habitat Quality</div>${noData}</div>`}
+            ${core ? renderCovCard('Year-Round Range', [{label:'Primary',pct:core.lg,color:'#7b2d8b'},{label:'Secondary',pct:core.md,color:'#b85cc8'},{label:'Remnant',pct:core.sm,color:'#dba3e8'}])
+                    : `<div class="cov-card"><div class="cov-card-title">Year-Round Range</div>${noData}</div>`}
+            ${fed  ? renderCovCard('Federal Lands',   [{label:'USFS',pct:fed.usfs,color:'#27ae60'},{label:'BLM',pct:fed.blm,color:'#e67e22'},{label:'NPS',pct:fed.nps,color:'#9b59b6'}])
+                    : `<div class="cov-card"><div class="cov-card-title">Federal Lands</div>${noData}</div>`}
+            ${swa  ? renderCovCard('State Lands',     [{label:'SWA',pct:swa.swa,color:'#c8b400'},{label:'State Park',pct:swa.park,color:'#ff4444'}])
+                    : `<div class="cov-card"><div class="cov-card-title">State Lands</div>${noData}</div>`}
+        </div>
+        ${azTotal!=null ? `
+        <div class="pu-divider" style="margin:7px -15px;"></div>
+        <div class="pu-section-title">Trailhead Access Coverage</div>
+        <div class="cov-card" style="margin-top:0;">
+            <div class="cov-row"><span class="cov-label">Within 10-mi of a trailhead</span><span class="cov-pct">${azTotal}%</span></div>
+            <div class="cov-bar-track"><div class="cov-bar-fill" style="width:${azTotal}%;background:#f0a500;"></div></div>
+        </div>` : ''}`;
+
+        requestAnimationFrame(() => el.querySelectorAll('.cov-bar-fill').forEach(bar => {
+            const w=bar.style.width; bar.style.width='0'; requestAnimationFrame(()=>{ bar.style.width=w; });
+        }));
+    }, 10);
+
+    return `
+        <div class="pu-header">
+            <div class="pu-unit-label">Colorado Game Management Unit</div>
+            <div class="pu-unit-title">Unit ${gmuId}${dauInfo}</div>
+            <div class="pu-unit-subtitle">Moose Hunting Unit · Colorado Parks &amp; Wildlife</div>
+        </div>
+        <div class="pu-body">
+            <div class="pu-section-title">Huntable Species</div>
+            <div class="species-grid">${speciesHtml}</div>
+            <div class="pu-divider"></div>
+            <div class="pu-section-title">Unit Coverage Analysis</div>
+            <div id="pu-cov-${gmuId}">
+                <div class="pu-computing"><div class="pu-spinner"></div>Computing spatial coverage…</div>
+            </div>
+        </div>`;
+}
+
+/* ════════════════════════════════════════════════
+   NON-GMU POPUP HELPER
+════════════════════════════════════════════════ */
+const getMoosePopup = (props, label) => {
+    const skip = new Set(['OBJECTID','Shape_Area','Shape_Leng','Shape__Area','Shape__Length']);
+    const rows = Object.entries(props)
+        .filter(([k,v]) => !skip.has(k) && v!=null && v!=='')
+        .map(([k,v]) => `<tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">${k}</td><td>${v}</td></tr>`)
+        .join('');
+    return `<div style="padding:11px 15px 8px;border-bottom:2px solid #1a7a4a;">
+                <b style="font-size:1.05em;color:#1a7a4a;">🦌 ${label}</b></div>
+            <div style="padding:6px 15px 12px;">
+                <table style="font-size:0.82em;border-collapse:collapse;width:100%;max-width:280px;">
+                    ${rows||'<tr><td style="color:#aaa">No attribute data</td></tr>'}
+                </table></div>`;
+};
+const getFederalStyle = a => ({USFS:{color:'#27ae60',opacity:0.4},BLM:{color:'#e67e22',opacity:0.4},NPS:{color:'#9b59b6',opacity:0.4}}[a]||{color:'transparent',opacity:0});
+
+/* ════════════════════════════════════════════════
+   GENERIC MOOSE LAYER LOADER
+════════════════════════════════════════════════ */
+const loadMooseLayer = async ({ path, stateKey, layerGroup, pane, fillColor, fillOpacity=0.35, borderColor='#555', label }) => {
+    try {
+        const data = await fetch(path).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
+        state.geoJsonLayers[stateKey] = L.geoJSON(data, {
+            pane, style:{ color:borderColor, weight:1, fillColor, fillOpacity },
+            onEachFeature: (f,layer) => {
+                layer.bindPopup(getMoosePopup(f.properties, label));
+                layer.on({
+                    mouseover: ()=>{ layer.setStyle({fillOpacity:Math.min(fillOpacity+0.25,0.85),weight:2}); layer.bringToFront(); },
+                    mouseout:  ()=>state.geoJsonLayers[stateKey].resetStyle(layer)
+                });
+            }
+        }).addTo(layerGroup);
+        console.log(`✓ ${label}`);
+    } catch(err) { console.warn(`⚠ ${label}:`, err.message); }
+};
+
+/* ════════════════════════════════════════════════
+   DATA LOADERS
+════════════════════════════════════════════════ */
+const loadGmuData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.gmus).then(r=>r.json());
+        state.gmuFeatures = data.features;
+        state.geoJsonLayers.gmu = L.geoJSON(data, {
+            pane:'gmuPane',
+            style:{ color:'#000', weight:1, fillOpacity:0.05 },
+            onEachFeature: (f,layer) => {
+                layer.bindTooltip(String(f.properties.GMUID), { permanent:true, direction:'center', className:'gmu-label' });
+                setupInteractions(layer, buildGmuPopupContent);
+            }
+        }).addTo(layers.gmu);
+        console.log('✓ GMU boundaries');
+    } catch(err) { console.error('GMU load error:', err); }
+};
+
+const loadMooseHabitatData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.mooseHabitat).then(r=>r.json());
+        state.rawGeoJSON.mooseHabitat = data.features;
+        state.geoJsonLayers.mooseHabitat = L.geoJSON(data, {
+            pane:'mooseHabitatPane',
+            style: f=>({ color:'#1a6e3c', weight:0.6, fillColor:getHabColor(f.properties.habitat_quality), fillOpacity:0.6 }),
+            onEachFeature: (f,layer) => {
+                layer.bindPopup(getMoosePopup(f.properties, 'Moose Habitat'));
+                layer.on({ mouseover:()=>{ layer.setStyle({fillOpacity:0.85,weight:1.5}); layer.bringToFront(); }, mouseout:()=>state.geoJsonLayers.mooseHabitat.resetStyle(layer) });
+            }
+        }).addTo(layers.mooseHabitat);
+        console.log('✓ Moose habitat');
+    } catch(err) { console.warn('⚠ Habitat:', err.message); }
+};
+
+const loadCoreHabitatData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.coreHabitat).then(r=>r.json());
+        state.rawGeoJSON.coreHabitat = data.features;
+        state.geoJsonLayers.coreHabitat = L.geoJSON(data, {
+            pane:'coreHabitatPane',
+            style: f=>{ const c=CORE_COLORS[f.properties.habitat_tier]||CORE_COLORS['Small Core']; return {color:c.border,weight:1.2,fillColor:c.fill,fillOpacity:0.65}; },
+            onEachFeature: (f,layer) => {
+                const p=f.properties, tier=p.habitat_tier||'—';
+                const c=CORE_COLORS[tier]||CORE_COLORS['Small Core'];
+                const displayLabel = c.label || tier;
+                layer.bindPopup(`<div style="padding:11px 15px 8px;border-bottom:2px solid ${c.fill};">
+                    <b style="color:#2c3e50;">🦌 Year-Round Range</b></div>
+                    <div style="padding:6px 15px 12px;font-size:0.83em;">
+                    <table style="border-collapse:collapse;width:100%;">
+                        <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">Range Class</td>
+                            <td><span style="background:${c.fill};color:#fff;padding:1px 8px;border-radius:3px;font-weight:bold;">${displayLabel}</span></td></tr>
+                        <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">Area</td><td>${p.area_acres!=null?Number(p.area_acres).toLocaleString()+' ac':'—'}</td></tr>
+                        <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">% of Summer Range</td><td>${p.pct_of_summer??'—'}%</td></tr>
+                        <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">% of Winter Range</td><td>${p.pct_of_winter??'—'}%</td></tr>
+                        <tr><td style="font-weight:bold;padding:2px 8px 2px 0;color:#555;">Overlap Index</td><td>${p.overlap_index??'—'}</td></tr>
+                    </table></div>`);
+                layer.on({ mouseover:()=>{ layer.setStyle({fillOpacity:0.9,weight:2.5}); layer.bringToFront(); }, mouseout:()=>state.geoJsonLayers.coreHabitat.resetStyle(layer) });
+            }
+        }).addTo(layers.coreHabitat);
+        console.log('✓ Year-Round Range');
+    } catch(err) { console.warn('⚠ Year-Round Range (run build_core_habitat.py first):', err.message); }
+};
+
+const loadCountyData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.counties).then(r=>r.json());
+        state.geoJsonLayers.county = L.geoJSON(data, {
+            pane:'countyPane', style:{color:'#e74c3c',weight:1.5,fillOpacity:0},
+            onEachFeature: (f,layer) => {
+                const name=(f.properties.COUNTY||f.properties.name||f.properties.NAME||'').replace(/County/gi,'').trim();
+                if(layer.getBounds) L.marker(layer.getBounds().getCenter(),{opacity:0,interactive:false})
+                    .bindTooltip(name,{permanent:true,direction:'center',className:'county-label',pane:'labelPane'})
+                    .addTo(layers.county);
+            }
+        }).addTo(layers.county);
+        console.log('✓ Counties');
+    } catch(err) { console.warn('⚠ Counties:', err.message); }
+};
+
+const loadFederalData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.federal).then(r=>r.json());
+        state.rawGeoJSON.federal = data.features;
+        state.geoJsonLayers.federal = L.geoJSON(data, {
+            pane:'federalPane', interactive:false,
+            style: f=>{ const s=getFederalStyle(f.properties.ADMIN_AGEN); return {fillColor:s.color,fillOpacity:s.opacity,weight:0}; }
+        }).addTo(layers.federal);
+        console.log('✓ Federal lands');
+    } catch(err) { console.warn('⚠ Federal:', err.message); }
+};
+
+const loadSwaData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.swas).then(r=>r.json());
+        state.rawGeoJSON.swa = data.features;
+        state.geoJsonLayers.swa = L.geoJSON(data, {
+            pane:'swaPane',
+            style: f=>{ const isPark=f.properties.PropType==='SP'; return {color:'#333',weight:0.8,fillColor:isPark?'#ff4444':'#ffff00',fillOpacity:0.7}; },
+            onEachFeature: (f,layer) => {
+                const name=f.properties.PropName;
+                layer.bindTooltip(name,{className:'land-label'});
+                layer.bindPopup(`<div style="padding:10px 14px;"><b>${name}</b></div>`);
+                layer.on({ mouseover:()=>{ clearAllHovers(); layer.setStyle(CONFIG.ACTIVE_STYLE); layer.bringToFront(); }, mouseout:()=>clearAllHovers(),
+                    click:e=>{ L.DomEvent.stopPropagation(e); state.currentSelection=layer; clearAllHovers(); layer.setStyle(CONFIG.ACTIVE_STYLE); layer.bringToFront(); } });
+            }
+        }).addTo(layers.swa);
+        console.log('✓ SWAs');
+    } catch(err) { console.warn('⚠ SWAs:', err.message); }
+};
+
+/* ── Trailhead Access Zones (pre-processed GeoJSON) ── */
+const loadAccessZoneData = async () => {
+    try {
+        const data = await fetch(CONFIG.DATA_PATHS.accessZone).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
+        state.rawGeoJSON.accessZone = data.features;
+        state.geoJsonLayers.accessZone = L.geoJSON(data, {
+            pane:'accessZonePane',
+            style:{ color:'#c17f00', weight:1, fillColor:'#f0a500', fillOpacity:0.18, dashArray:'4 4' }
+        }).addTo(layers.accessZone);
+        console.log('✓ Trailhead Access Zones');
+    } catch(err) { console.warn('⚠ Access Zones (run build_access_zones.py first):', err.message); }
+};
+
+/* ── CO TREX Trails (live API) ─────────────────── */
+const loadTrailData = async () => {
+    try {
+        console.log('⏳ Loading CO TREX Trails…');
+        const data = await fetch(CONFIG.API.trails).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
+        state.geoJsonLayers.trails = L.geoJSON(data, {
+            pane:'trailPane',
+            style: f => {
+                const type = f.properties.UseType || f.properties.USETYPE || '';
+                return { color:getTrailColor(type), weight:1.5, opacity:0.8 };
+            },
+            onEachFeature: (f,layer) => {
+                const p=f.properties;
+                const name = p.TrailName||p.TRAILNAME||p.Name||p.NAME||'Trail';
+                const use  = p.UseType  ||p.USETYPE  ||'—';
+                const surf = p.Surface  ||p.SURFACE  ||'—';
+                const diff = p.Difficulty||p.DIFFICULTY||'—';
+                layer.bindTooltip(name, { className:'trail-label', sticky:true });
+                layer.bindPopup(`<div style="padding:10px 14px;">
+                    <b style="color:#5d4037;">🥾 ${name}</b><br>
+                    <table style="font-size:0.82em;margin-top:5px;border-collapse:collapse;">
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Use Type</td><td>${use}</td></tr>
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Surface</td><td>${surf}</td></tr>
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Difficulty</td><td>${diff}</td></tr>
+                    </table></div>`);
+                layer.on({ mouseover:()=>layer.setStyle({weight:3,opacity:1}), mouseout:()=>state.geoJsonLayers.trails.resetStyle(layer) });
+            }
+        }).addTo(layers.trails);
+        console.log(`✓ CO TREX Trails (${data.features?.length||0} features)`);
+    } catch(err) { console.warn('⚠ Trails API:', err.message); }
+};
+
+/* ── CO TREX Trailheads (live API) ──────────────── */
+const loadTrailheadData = async () => {
+    try {
+        console.log('⏳ Loading CO TREX Trailheads…');
+        const data = await fetch(CONFIG.API.trailheads).then(r=>{ if(!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
+        state.geoJsonLayers.trailheads = L.geoJSON(data, {
+            pane:'trailheadPane',
+            pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+                radius:5, fillColor:'#e65100', color:'#bf360c', weight:1.5, fillOpacity:0.9
+            }),
+            onEachFeature: (f,layer) => {
+                const p=f.properties;
+                const name   = p.TrailheadName||p.TRAILHEADNAME||p.Name||p.NAME||'Trailhead';
+                const mgmt   = p.ManagingOrg ||p.MANAGINGORG ||'—';
+                const access = p.AccessType  ||p.ACCESSTYPE  ||'—';
+                const park   = p.ParkingSpots||p.PARKINGSPOTS||'—';
+                layer.bindTooltip(name, { className:'trail-label' });
+                layer.bindPopup(`<div style="padding:10px 14px;">
+                    <b style="color:#e65100;">📍 ${name}</b><br>
+                    <table style="font-size:0.82em;margin-top:5px;border-collapse:collapse;">
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Managed By</td><td>${mgmt}</td></tr>
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Access Type</td><td>${access}</td></tr>
+                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Parking</td><td>${park} spots</td></tr>
+                    </table></div>`);
+            }
+        }).addTo(layers.trailheads);
+        console.log(`✓ Trailheads (${data.features?.length||0} features)`);
+    } catch(err) { console.warn('⚠ Trailheads API:', err.message); }
+};
+
+/* ── OSM Forest Roads (Overpass API) ────────────── */
+const loadForestRoadData = async () => {
+    try {
+        console.log('⏳ Loading OSM forest roads…');
+        const res  = await fetch(CONFIG.API.osmRoads);
+        if (!res.ok) throw Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        // Convert Overpass JSON → GeoJSON LineStrings
+        const features = (json.elements||[])
+            .filter(el => el.type==='way' && el.geometry?.length > 1)
+            .map(el => ({
+                type:'Feature',
+                properties: el.tags||{},
+                geometry: {
+                    type:'LineString',
+                    coordinates: el.geometry.map(pt => [pt.lon, pt.lat])
+                }
+            }));
+
+        state.geoJsonLayers.forestRoads = L.geoJSON({ type:'FeatureCollection', features }, {
+            pane:'forestRoadPane',
+            style: f => {
+                const hw = f.properties.highway||'';
+                return { color: hw==='track'?'#5d4037':'#8d6e63', weight: hw==='track'?1.2:1, opacity:0.7, dashArray: hw==='track'?'3 4':undefined };
+            },
+            onEachFeature: (f,layer) => {
+                const p=f.properties;
+                const name = p.name||p.ref||p.highway||'Forest Road';
+                layer.bindTooltip(name, { className:'trail-label', sticky:true });
+                layer.on({ mouseover:()=>layer.setStyle({weight:2.5,opacity:1}), mouseout:()=>state.geoJsonLayers.forestRoads.resetStyle(layer) });
+            }
+        }).addTo(layers.forestRoads);
+        console.log(`✓ OSM Forest Roads (${features.length} ways)`);
+    } catch(err) { console.warn('⚠ OSM Forest Roads:', err.message); }
+};
+
+/* ════════════════════════════════════════════════
+   GMU ZOOM
+════════════════════════════════════════════════ */
+const zoomToGmu = id => {
+    const s = String(id).replace(/\D/g,'');
+    if (!s || !state.geoJsonLayers.gmu) return;
+    state.geoJsonLayers.gmu.eachLayer(layer => {
+        if (String(layer.feature.properties.GMUID)===s) {
+            state.currentSelection = layer;
+            clearAllHovers(); map.fitBounds(layer.getBounds());
+            L.popup({maxWidth:330,minWidth:308}).setLatLng(layer.getBounds().getCenter()).setContent(buildGmuPopupContent(layer)).openOn(map);
+        }
+    });
+};
+map.on('click', () => { state.currentSelection=null; clearAllHovers(); });
+
+/* ════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════ */
+(async () => {
+    console.log('🗺  Colorado Moose Finder initializing…');
+    // Priority: default-on layers
+    await Promise.all([loadGmuData(), loadMooseHabitatData()]);
+    // Background: all remaining
+    Promise.all([
+        loadCoreHabitatData(), loadFederalData(), loadSwaData(), loadCountyData(),
+        loadAccessZoneData(),
+        loadTrailData(), loadTrailheadData(), loadForestRoadData(),
+        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseSummer,    stateKey:'mooseSummer',    layerGroup:layers.mooseSummer,    pane:'mooseSummerPane',  fillColor:'#f39c12',fillOpacity:0.35,label:'Moose Summer Range'}),
+        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseWinter,    stateKey:'mooseWinter',    layerGroup:layers.mooseWinter,    pane:'mooseWinterPane',  fillColor:'#3498db',fillOpacity:0.35,label:'Moose Winter Range'}),
+        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseMigration, stateKey:'mooseMigration', layerGroup:layers.mooseMigration, pane:'mooseMigPane',     fillColor:'#9b59b6',fillOpacity:0.35,label:'Moose Migration Corridors'}),
+        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseDaus,      stateKey:'mooseDaus',      layerGroup:layers.mooseDaus,      pane:'mooseDauPane',     fillColor:'#e74c3c',fillOpacity:0.25,label:'Moose DAUs'}),
+        loadMooseLayer({path:CONFIG.DATA_PATHS.mooseGmus,      stateKey:'mooseGmus',      layerGroup:layers.mooseGmus,      pane:'mooseGmuPane',     fillColor:'#1abc9c',fillOpacity:0.25,label:'Moose GMUs'})
+    ]).then(() => console.log('✅ Colorado Moose Finder ready'));
+})();
 </script>
 </body>
 </html>
