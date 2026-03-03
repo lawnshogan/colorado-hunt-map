@@ -1,0 +1,462 @@
+/* Colorado Moose Finder — All Styles */
+
+/* ── Reset ─────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', system-ui, sans-serif; overflow:hidden; }
+#map { position:absolute; inset:0; z-index:1; }
+
+/* ── Shared panel chrome ────────────────────── */
+.map-panel {
+    background:rgba(255,255,255,0.97);
+    backdrop-filter:blur(6px);
+    border-radius:8px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.18);
+    border:1px solid rgba(0,0,0,0.1);
+}
+
+/* ══════════════════════════════════════════════
+   LEFT COLUMN — title bar + collapsible body
+══════════════════════════════════════════════ */
+#left-panel {
+    position:absolute;
+    top:10px; left:50px;
+    z-index:1000;
+    width:282px;
+    display:flex;
+    flex-direction:column;
+}
+
+#title-bar {
+    background:#2c3e50;
+    color:#fff;
+    padding:10px 14px;
+    border-radius:8px 8px 0 0;
+    display:flex; align-items:center; gap:9px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.22);
+    flex-shrink:0;
+}
+.title-icon { width:22px; height:22px; flex-shrink:0; }
+.title-text { font-size:1.08em; font-weight:900; letter-spacing:0.02em; }
+.title-sub  { font-size:0.58em; font-weight:400; opacity:0.6; margin-top:1px; }
+
+#cmd-toggle {
+    background:#374e63; color:#fff;
+    padding:5px 13px 5px 14px;
+    cursor:pointer; user-select:none;
+    font-size:0.68em; font-weight:700;
+    text-transform:uppercase; letter-spacing:0.07em;
+    display:flex; justify-content:space-between; align-items:center;
+    transition:border-radius 0.1s;
+}
+#cmd-toggle.alone { border-radius:0 0 8px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+
+#cmd-body {
+    background:rgba(255,255,255,0.97);
+    border:1px solid rgba(0,0,0,0.1);
+    border-top:none;
+    border-radius:0 0 8px 8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    padding:10px 12px 12px;
+    overflow:hidden;
+}
+#cmd-body.collapsed { display:none; }
+
+/* Search */
+.search-wrap {
+    display:flex; align-items:center;
+    background:#f4f6f8; border:1px solid #dde2e8; border-radius:6px;
+    overflow:hidden; transition:border-color 0.15s;
+}
+.search-wrap:focus-within { border-color:#2c3e50; }
+.search-wrap svg { margin:0 8px; flex-shrink:0; opacity:0.45; }
+#gmu-search-input {
+    flex:1; border:none; background:transparent;
+    padding:7px 4px; font-size:0.84em; font-family:inherit; color:#2c3e50; outline:none;
+}
+#gmu-search-input::placeholder { color:#aab; }
+#search-btn {
+    background:#e67e22; color:#fff; border:none;
+    padding:7px 11px; font-size:0.78em; font-weight:700;
+    cursor:pointer; transition:background 0.15s; letter-spacing:0.02em;
+}
+#search-btn:hover { background:#cf6d17; }
+
+#gmu-autocomplete {
+    display:none; position:absolute; left:0; right:0; top:calc(100% + 2px);
+    background:#fff; border:1px solid #dde2e8; border-radius:6px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.12); z-index:9999;
+    max-height:180px; overflow-y:auto;
+}
+#gmu-autocomplete.visible { display:block; }
+.ac-item { padding:7px 12px; font-size:0.83em; cursor:pointer; color:#2c3e50; border-bottom:1px solid #f2f2f2; }
+.ac-item:last-child { border-bottom:none; }
+.ac-item:hover, .ac-item.highlighted { background:#eaf1fb; }
+.ac-item b { color:#e67e22; }
+
+.cmd-section { font-size:0.63em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
+
+.regs-toggle { display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; }
+.regs-toggle .regs-arrow { font-size:0.7em; color:#95a5a6; transition:transform 0.2s; }
+.regs-toggle .regs-arrow.open { transform:rotate(180deg); }
+#regs-body { margin-top:4px; }
+#regs-body.collapsed { display:none; }
+#res-body { margin-top:0; }
+#res-body.collapsed { display:none; }
+
+.reg-table { width:100%; border-collapse:collapse; font-size:0.75em; }
+.reg-table td { padding:2px 6px 2px 0; vertical-align:top; color:#555; line-height:1.35; }
+.reg-table td:first-child { font-weight:700; color:#2c3e50; white-space:nowrap; padding-right:8px; width:36%; }
+.reg-divider { height:1px; background:#f0f0f0; margin:5px 0; }
+
+.quicklinks { display:flex; gap:5px; flex-wrap:wrap; }
+.ql-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:5px 9px; font-size:0.74em; font-weight:600;
+    border-radius:5px; text-decoration:none; border:1px solid transparent;
+    cursor:pointer; transition:all 0.15s; white-space:nowrap;
+}
+.ql-btn.green  { background:#eafaf1; color:#1e8449; border-color:#a9dfbf; }
+.ql-btn.green:hover  { background:#d5f5e3; }
+.ql-btn.blue   { background:#ebf5fb; color:#1a5276; border-color:#a9cce3; }
+.ql-btn.blue:hover   { background:#d6eaf8; }
+.ql-btn.orange { background:#fef9e7; color:#935116; border-color:#f9e4b7; }
+.ql-btn.orange:hover { background:#fdebd0; }
+.ql-btn.grey   { background:#f4f6f7; color:#424949; border-color:#d5d8dc; }
+.ql-btn.grey:hover   { background:#e8eaed; }
+.ql-btn.red    { background:#fdecea; color:#b71c1c; border-color:#f5c6c2; }
+.ql-btn.red:hover    { background:#fbd3d0; }
+.ql-btn.purple { background:#f3e8fd; color:#6a1b9a; border-color:#d7b8f5; }
+.ql-btn.purple:hover { background:#e8d0fb; }
+
+/* ══════════════════════════════════════════════
+   LAYER PANEL (top-right)
+   Basemap buttons snap to the header (sticky),
+   layer groups scroll independently beneath.
+══════════════════════════════════════════════ */
+#layer-panel { position:absolute; top:10px; right:10px; z-index:1000; width:235px; }
+#layer-panel .panel-header {
+    background:#2c3e50; color:#fff; padding:9px 13px; cursor:pointer;
+    font-weight:700; font-size:0.88em; border-radius:8px 8px 0 0;
+    display:flex; justify-content:space-between; align-items:center; user-select:none;
+}
+#layer-panel.body-hidden .panel-header { border-radius:8px; }
+
+/* Wrapper that holds basemap row (sticky) + scrolling groups */
+#layer-panel-body {
+    background:#fff;
+    border-radius:0 0 8px 8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    border:1px solid rgba(0,0,0,0.1);
+    border-top:none;
+    display:flex;
+    flex-direction:column;
+    max-height:82vh;
+    overflow:hidden;   /* clipping container — children handle their own scroll */
+}
+#layer-panel-body.collapsed { display:none; }
+
+/* Basemap buttons — sticky at top, never scroll away */
+.lp-basemap-row {
+    display:flex; gap:4px;
+    padding:6px 10px 7px;
+    border-bottom:2px solid #e8e8e8;
+    flex-shrink:0;   /* never shrink — stays pinned */
+    background:#fff;
+    z-index:1;
+}
+.lp-basemap-btn {
+    flex:1; padding:5px 2px; font-size:0.68em; font-weight:700;
+    border:1px solid #ccc; border-radius:4px; cursor:pointer;
+    background:#f4f4f4; color:#2c3e50; text-align:center; transition:all 0.15s;
+}
+.lp-basemap-btn.active { background:#2c3e50; color:#fff; border-color:#2c3e50; }
+
+/* Layer groups — scrollable area below the sticky basemap row */
+#layer-panel-groups {
+    overflow-y:auto;
+    flex:1;
+    padding-bottom:4px;
+}
+
+.lp-group-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 10px 3px; cursor:pointer; user-select:none;
+    font-size:0.67em; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.05em; color:#95a5a6; margin-top:3px; border-top:1px solid #f0f0f0;
+}
+.lp-group-header:hover { color:#2c3e50; }
+.lp-group-arrow { font-size:0.8em; transition:transform 0.2s; }
+.lp-group-arrow.collapsed { transform:rotate(-90deg); }
+.lp-group-body { padding:1px 10px 5px; }
+.lp-group-body.collapsed { display:none; }
+
+.lp-row { display:grid; grid-template-columns:15px 25px 1fr; align-items:center; padding:3px 0; cursor:pointer; font-size:0.82em; color:#2c3e50; line-height:1.3; }
+.lp-row:hover { color:#000; }
+.lp-row input[type="checkbox"] { width:12px; height:12px; margin:0; cursor:pointer; accent-color:#2c3e50; display:block; }
+.lp-symbol { display:flex; align-items:center; justify-content:center; width:25px; }
+.lp-swatch { width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,0.18); display:block; }
+.lp-line   { width:14px; height:3px; border-radius:2px; display:block; }
+.lp-outline { width:14px; height:14px; border-radius:3px; border:2px solid #333; background:transparent; display:block; }
+.lp-multi  { display:flex; width:18px; height:12px; border-radius:3px; overflow:hidden; }
+.lp-multi span { flex:1; display:block; }
+.lp-dot    { width:10px; height:10px; border-radius:50%; border:1px solid rgba(0,0,0,0.2); display:block; }
+.lp-sublabel { grid-column:2/4; padding:1px 0 3px 2px; display:flex; flex-direction:column; gap:2px; }
+.lp-subrow { display:flex; align-items:center; gap:5px; font-size:0.79em; color:#666; }
+.lp-subrow .lp-swatch { width:11px; height:11px; }
+.lp-subrow .lp-dot    { width:9px; height:9px; }
+.lp-subrow .lp-line   { width:12px; }
+
+/* ══════════════════════════════════════════════
+   BOTTOM-LEFT NAV CONTROLS
+══════════════════════════════════════════════ */
+#nav-controls {
+    position:fixed; bottom:48px; left:10px;
+    z-index:1999;
+    display:flex; flex-direction:column; gap:4px;
+}
+.nav-btn {
+    display:flex; align-items:center; justify-content:center;
+    width:34px; height:34px; background:#fff;
+    border:2px solid rgba(0,0,0,0.2); border-radius:4px;
+    cursor:pointer; box-shadow:0 1px 5px rgba(0,0,0,0.2);
+    transition:background 0.15s, border-color 0.15s; position:relative;
+}
+.nav-btn:hover { background:#f0f7ff; border-color:#3498db; }
+.nav-btn:hover svg { stroke:#3498db; }
+.nav-btn.active { background:#ebf5fb; border-color:#2980b9; }
+.nav-btn svg { stroke:#2c3e50; fill:none; stroke-width:1.6; transition:stroke 0.15s; }
+.nav-btn.disabled { opacity:0.35; cursor:default; pointer-events:none; }
+.nav-tip {
+    position:absolute; left:42px; top:50%; transform:translateY(-50%);
+    background:#2c3e50; color:#fff; font-size:11px; padding:3px 8px;
+    border-radius:4px; white-space:nowrap; opacity:0;
+    transition:opacity 0.15s; pointer-events:none; z-index:9999;
+}
+.nav-tip::before { content:''; position:absolute; right:100%; top:50%; transform:translateY(-50%); border:4px solid transparent; border-right-color:#2c3e50; }
+.nav-btn:hover .nav-tip { opacity:1; }
+.nav-sep { height:1px; background:rgba(0,0,0,0.12); margin:2px 4px; }
+
+/* ══════════════════════════════════════════════
+   UNIT INFO DOCK — bigger (420px, 70vh)
+══════════════════════════════════════════════ */
+#unit-dock {
+    position:fixed;
+    bottom:0; left:55px;
+    z-index:2000;
+    width:420px;                 /* wider than before (was 340px) */
+    display:none;
+    flex-direction:column;
+    font-family:'Segoe UI', system-ui, sans-serif;
+    filter:drop-shadow(0 -4px 16px rgba(0,0,0,0.18));
+    pointer-events:none;
+}
+#unit-dock.active { display:flex; }
+
+#unit-dock-body {
+    background:#fff;
+    border:1px solid rgba(0,0,0,0.12);
+    border-bottom:none;
+    border-radius:8px 8px 0 0;
+    overflow:hidden;
+    max-height:0;
+    transition:max-height 0.32s cubic-bezier(0.4,0,0.2,1);
+    pointer-events:all;
+}
+#unit-dock-body.open { max-height:70vh; }   /* taller than before (was 65vh) */
+#unit-dock-scroll {
+    overflow-y:auto;
+    max-height:70vh;
+}
+
+#unit-dock-tab {
+    background:#2c3e50; color:#fff;
+    height:42px; padding:0 14px;  /* slightly taller tab */
+    border-radius:0;
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; user-select:none;
+    box-shadow:0 -2px 8px rgba(0,0,0,0.20);
+    pointer-events:all;
+    flex-shrink:0;
+}
+#unit-dock-tab:hover { background:#34495e; }
+#unit-dock-tab-left { display:flex; align-items:center; gap:8px; min-width:0; }
+#unit-dock-tab-icon { flex-shrink:0; opacity:0.75; }
+#unit-dock-tab-text { min-width:0; }
+#unit-dock-tab-title {
+    font-size:0.85em; font-weight:700; letter-spacing:0.03em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#unit-dock-tab-sub { font-size:0.62em; font-weight:400; opacity:0.55; white-space:nowrap; }
+#unit-dock-tab-right { display:flex; align-items:center; gap:5px; flex-shrink:0; margin-left:8px; }
+.dock-btn {
+    background:rgba(255,255,255,0.12);
+    border:none; color:#fff;
+    width:24px; height:24px; border-radius:3px;
+    cursor:pointer; font-size:10px;
+    display:flex; align-items:center; justify-content:center;
+    transition:background 0.15s; flex-shrink:0;
+}
+.dock-btn:hover { background:rgba(255,255,255,0.28); }
+
+/* ── GPS Location popup ──────────────────── */
+.loc-popup { font-family:'Segoe UI', system-ui, sans-serif; border-radius:6px; overflow:hidden; }
+.loc-popup-header {
+    background:#2c3e50; color:#fff;
+    padding:9px 13px; display:flex; align-items:center; gap:7px;
+    font-size:0.82em; font-weight:700; letter-spacing:0.03em;
+}
+.loc-popup-body { padding:9px 13px 10px; background:#fff; }
+.loc-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:0.8em; border-bottom:1px solid #f2f2f2; }
+.loc-row:last-child { border-bottom:none; }
+.loc-label { color:#7f8c8d; font-weight:600; }
+.loc-val   { color:#2c3e50; font-weight:700; font-variant-numeric:tabular-nums; }
+
+/* ══════════════════════════════════════════════
+   PROFESSIONAL LAYER POPUPS
+   Used by Habitat Quality, Year-Round Range,
+   Access Zones, and Trailheads.
+══════════════════════════════════════════════ */
+.leaflet-popup-content-wrapper {
+    border-radius:8px !important; padding:0 !important; overflow:hidden;
+    box-shadow:0 6px 24px rgba(0,0,0,0.2) !important;
+}
+.leaflet-popup-content {
+    font-family:'Segoe UI', system-ui, sans-serif;
+    line-height:1.4; margin:0 !important; width:auto !important; min-width:240px;
+}
+.leaflet-popup-tip-container { margin-top:-1px; }
+
+/* Shared pro-popup structure */
+.pro-popup { font-family:'Segoe UI', system-ui, sans-serif; min-width:240px; max-width:280px; }
+.pro-popup-header {
+    background:#f8f9fa;
+    padding:10px 14px 8px;
+    border-bottom:1px solid #e8e8e8;
+}
+.pro-popup-title   { font-size:0.92em; font-weight:800; color:#2c3e50; line-height:1.2; }
+.pro-popup-subtitle { font-size:0.68em; color:#95a5a6; margin-top:2px; font-weight:500; }
+.pro-popup-body    { padding:10px 14px 12px; background:#fff; }
+
+/* Quality / tier badge pill */
+.pro-popup-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:3px 10px 3px 7px; border-radius:20px;
+    font-size:0.76em; font-weight:700;
+    margin-bottom:9px;
+}
+.pro-popup-badge-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+/* Attribute table */
+.pro-popup-table { width:100%; border-collapse:collapse; font-size:0.78em; }
+.pro-popup-table td { padding:3px 6px 3px 0; vertical-align:top; color:#555; border-bottom:1px solid #f5f5f5; }
+.pro-popup-table td:last-child { border-bottom:1px solid #f5f5f5; }
+.pro-popup-table tr:last-child td { border-bottom:none; }
+.pro-popup-table td:first-child { font-weight:700; color:#2c3e50; white-space:nowrap; padding-right:10px; width:45%; }
+
+/* Descriptive text blocks */
+.pro-popup-desc {
+    font-size:0.76em; color:#666; margin-top:8px;
+    line-height:1.45; border-top:1px solid #f0f0f0; padding-top:7px;
+}
+.pro-popup-hint {
+    font-size:0.72em; color:#95a5a6; margin-top:6px; line-height:1.4;
+    font-style:italic;
+}
+/* Hunter guidance callout */
+.pro-popup-guidance {
+    font-size:0.76em; color:#2c3e50;
+    background:#f0f7ff; border-left:3px solid #3498db;
+    padding:5px 9px; border-radius:0 4px 4px 0;
+    margin-top:8px; line-height:1.4;
+}
+
+/* ══════════════════════════════════════════════
+   TRAILHEAD HIGHLIGHT POPUP
+   Shown when clicking a trailhead from the
+   GMU popup list.
+══════════════════════════════════════════════ */
+.th-highlight-popup .leaflet-popup-content-wrapper {
+    border-radius:8px !important;
+    padding:0 !important;
+    overflow:hidden;
+}
+.th-highlight-popup .leaflet-popup-content {
+    margin:0 !important; width:auto !important; min-width:200px;
+}
+.th-popup-inner { font-family:'Segoe UI', system-ui, sans-serif; }
+.th-popup-header {
+    background:#e65100; color:#fff;
+    padding:8px 12px;
+    display:flex; align-items:center; gap:7px;
+    font-size:0.75em; font-weight:700; letter-spacing:0.04em;
+}
+.th-popup-name {
+    padding:8px 12px 4px;
+    font-size:0.92em; font-weight:800; color:#2c3e50;
+}
+.th-popup-coords {
+    padding:0 12px 10px;
+    font-size:0.72em; color:#95a5a6;
+    font-variant-numeric:tabular-nums;
+}
+
+/* Pulsing animation on the highlight ring */
+@keyframes th-pulse {
+    0%   { opacity:0.9; r:18; }
+    50%  { opacity:0.4; r:24; }
+    100% { opacity:0.9; r:18; }
+}
+.th-highlight-ring { animation:th-pulse 1.6s ease-in-out infinite; }
+
+/* ══════════════════════════════════════════════
+   GMU POPUP (in unit dock)
+══════════════════════════════════════════════ */
+.pu-header { background:#2c3e50; color:#fff; padding:12px 16px 11px; }
+.pu-unit-label { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; opacity:0.65; margin-bottom:2px; }
+.pu-unit-title { font-size:1.3em; font-weight:700; line-height:1.1; }
+.pu-unit-subtitle { font-size:0.72em; opacity:0.6; margin-top:3px; }
+.pu-body { padding:12px 16px; }
+.pu-section-title { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#95a5a6; margin:10px 0 5px; }
+.pu-section-title:first-child { margin-top:0; }
+.pu-divider { height:1px; background:#eee; margin:9px -16px; }
+
+.species-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+.sp-chip { display:flex; align-items:center; gap:4px; padding:3px 5px; border-radius:4px; font-size:0.76em; font-weight:600; }
+.sp-chip.yes { background:#eafaf1; color:#1e8449; }
+.sp-chip.no  { background:#fdfefe; color:#b0b8c1; border:1px solid #e8e8e8; }
+.sp-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.sp-chip.yes .sp-dot { background:#27ae60; }
+.sp-chip.no  .sp-dot { background:#ddd; }
+
+.coverage-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.cov-card { background:#f8f9fa; border-radius:5px; padding:7px 9px; border:1px solid #eee; }
+.cov-card-title { font-size:0.65em; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#95a5a6; margin-bottom:4px; }
+.cov-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; font-size:0.75em; }
+.cov-row:last-child { margin-bottom:0; }
+.cov-label { color:#555; flex:1; padding-right:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cov-pct { font-weight:700; font-size:0.9em; color:#2c3e50; min-width:32px; text-align:right; }
+.cov-bar-track { height:3px; border-radius:2px; background:#e0e0e0; margin-top:2px; overflow:hidden; }
+.cov-bar-fill { height:100%; border-radius:2px; transition:width 0.4s ease; }
+.pu-computing { display:flex; align-items:center; gap:8px; padding:8px 0; font-size:0.78em; color:#95a5a6; }
+.pu-spinner { width:13px; height:13px; border-radius:50%; border:2px solid #ddd; border-top-color:#2c3e50; animation:spin 0.7s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Nearby trailheads list */
+.th-list { list-style:none; margin-top:4px; }
+.th-list li {
+    display:flex; align-items:center; gap:6px;
+    padding:5px 6px; font-size:0.78em; color:#2c3e50;
+    border-bottom:1px solid #f2f2f2; cursor:pointer;
+    border-radius:4px; transition:background 0.12s, color 0.12s;
+}
+.th-list li:last-child { border-bottom:none; }
+.th-list li:hover { background:#fff3e0; color:#e65100; }
+.th-list li svg { flex-shrink:0; stroke:#e65100; opacity:0.7; }
+.th-list-empty { font-size:0.77em; color:#aaa; padding:4px 0; }
+
+/* ── Map labels ─────────────────────────────── */
+.gmu-label,.land-label,.county-label { background:transparent !important; border:none !important; box-shadow:none !important; pointer-events:none; }
+.gmu-label    { font-weight:bold; color:#000; font-size:11px; text-shadow:1px 1px 2px white; }
+.land-label   { color:#2c3e50; font-size:10px; font-style:italic; }
+.county-label { color:#c0392b !important; font-size:11px !important; font-weight:900 !important; text-transform:uppercase; white-space:nowrap; text-shadow:2px 2px 3px white,-2px -2px 3px white,2px -2px 3px white,-2px 2px 3px white; }
+.trail-label  { background:transparent !important; border:none !important; box-shadow:none !important; color:#5d4037; font-size:9px; font-style:italic; pointer-events:none; }

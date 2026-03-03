@@ -1,70 +1,151 @@
-# Colorado Moose Habitat Analysis & Visualization Engine
+# Colorado Moose Finder
 
-A full-stack Geospatial ETL (Extract, Transform, Load) pipeline and interactive web application designed to identify, enrich, and visualize critical Moose habitats across Colorado. This project demonstrates high-level spatial data engineering, PostGIS integration, and responsive web mapping.
+**An interactive hunting intelligence map for Colorado moose unit planning.**
 
-
-
-## 🛠 Tech Stack
-
-* **Language:** Python 3.13 (Data Science & ETL)
-* **Database:** PostgreSQL 16 + PostGIS 3.4 (Spatial Analysis Engine)
-* **GIS Libraries:** GeoPandas, Shapely, PyProj, SQLAlchemy, GeoAlchemy2
-* **Frontend:** Leaflet.js, HTML5, CSS3 (Modern UI/UX with Backdrop Blurs)
-* **Data Source:** CPW (Colorado Parks and Wildlife) Open Data
+Built for a hunter drawing a Colorado moose tag for the first time — combines habitat data, land ownership, access infrastructure, and regulations into a single browser-based map with no account or software required.
 
 ---
 
-## 🏗 Data Pipeline Architecture
+## Live Map
 
-The system is architected into four distinct stages to maintain modularity and allow for scalable data updates.
-
-### 01. API Data Extraction (`01_extract_moose_api.py`)
-* **Purpose:** Automated data acquisition from remote biological databases.
-* **Function:** Communicates with the CPW ArcGIS REST API to pull the most recent GeoJSON datasets for moose ranges and management boundaries.
-* **Outcome:** Populates the `data/raw/moose/` directory with local, versioned geometry files.
-
-### 02. Spatial Environment Setup (`02_setup_postgis.py`)
-* **Purpose:** Bootstraps the local environment for high-performance spatial operations.
-* **Action:** Establishes a connection to the PostgreSQL instance and initializes the **PostGIS extension**.
-* **Technical Note:** Sets up the geometry columns and spatial indexing required for coordinate-aware queries.
-
-### 03. PostGIS Data Ingestion (`03_load_moose_to_postgis.py`)
-* **Purpose:** Normalizes disparate source files into a centralized relational repository.
-* **Action:** Ingests raw GeoJSON data (Habitat, DAUs, GMUs), enforces a global Coordinate Reference System (**EPSG:4326**), and persists the data as spatial tables.
-* **Optimization:** Utilizes a standard ingestion pattern to ensure the pipeline remains idempotent and easy to re-run with updated source files.
-
-### 04. Spatial Enrichment & Intelligence (`04_moose_dau_gmu_identifier.py`)
-* **Purpose:** The "Core Intelligence" layer of the application.
-* **Nearest-Neighbor Spatial Join:** Implements `sjoin_nearest` to reconcile habitat polygons with GMU boundaries. This solves the "slivers" problem where map boundaries don't align perfectly, ensuring 100% data coverage.
-
-* **Heuristic Classification:** A text-mining algorithm scans metadata for keywords (*Willow, Riparian, Winter, Concentration*) to classify habitats into **Excellent** or **High Quality** tiers.
-* **Quantile Ranking:** Incorporates a statistical fallback that identifies significant habitat areas based on area-weighted significance (Top 15% by size) when metadata is unavailable.
+Open `index.html` in a browser. All data is loaded from local GeoJSON files (in `data/processed/`) and one live API endpoint (CPW COTREX trailheads). No server required.
 
 ---
 
-## 🗺 Visualization Features
+## Project Structure
 
-* **Layer Depth Management (Panes):** Custom Leaflet panes manage the visual hierarchy, ensuring high-contrast labels and boundaries remain legible over semi-transparent habitat fills.
-* **Schema-Agnostic Popups:** The frontend uses an "Attribute Scanner" in JavaScript to find and display unit data, making the UI resilient to backend column changes or prefixes like `gmu_code_right`.
-* **Responsive UI:** Integrated locate controls, custom SVG icons, and a backdrop-filter blur for a professional, modern application feel.
-* **Dynamic Legend:** A reactive legend widget that conditionally displays symbology based on which layers are currently active in the view.
+```
+colorado-hunt-map/
+├── index.html                  # Entry point
+├── css/
+│   └── styles.css              # All map styles
+├── js/
+│   ├── config.js               # Data paths, API endpoints, color constants
+│   ├── map.js                  # Map init, panes, layer groups, GPS, extent history
+│   ├── ui.js                   # Panel controls, search, layer checkboxes, basemap switcher
+│   ├── popup.js                # Unit info dock, spatial coverage analysis, GMU popup builder
+│   └── layers.js               # All data loaders, zoom-to-unit, initialization
+├── css/styles.css
+├── data/
+│   ├── raw/                    # Original source downloads (not committed)
+│   └── processed/              # Map-ready GeoJSON outputs
+│       ├── CPW_GMU_Boundary_BigGame_CO.geojson
+│       ├── moose_habitat_enriched.geojson
+│       ├── Moose_Core_Habitat.geojson
+│       ├── Moose_DAUs.geojson
+│       ├── Moose_GMUs.geojson
+│       ├── Moose_Summer_Range.geojson
+│       ├── Moose_Winter_Range.geojson
+│       ├── Moose_Migration_Corridors.geojson
+│       ├── Moose_Trailhead_Access_Zones.geojson
+│       ├── surface_management_agency_CO.geojson
+│       ├── CPW_State_Wildlife_Areas_And_State_Parks_CO.geojson
+│       └── county_co_CO.geojson
+├── scripts/
+│   ├── 01_extract_moose_api.py
+│   ├── 02_setup_postgis.py
+│   ├── 03_load_moose_to_postgis.py
+│   ├── 04_moose_dau_gmu_identifier.py
+│   ├── 05_build_core_habitat.py
+│   └── 06_build_access_zones.py
+├── docs/
+│   └── brochure_2026.pdf
+├── SUMMARY.md                  # Project summary one-pager
+└── README.md
+```
 
 ---
 
-## 🚀 Getting Started
+## Data Pipeline
 
-### Prerequisites
-* PostgreSQL 16+ with PostGIS installed.
-* Python 3.13 environment with `geopandas`, `sqlalchemy`, and `psycopg2`.
+All processing is automated. Run scripts in order from the `scripts/` directory.
 
-### Execution Order
-1.  **Extract Data:** `python scripts/01_extract_moose_api.py`
-2.  **Initialize DB:** `python scripts/02_setup_postgis.py`
-3.  **Load PostGIS:** `python scripts/03_load_moose_to_postgis.py`
-4.  **Enrich Habitat:** `python scripts/04_moose_dau_gmu_identifier.py`
-5.  **View Map:** Open `index.html` via a local live server.
+**Requirements:** Python 3.9+, PostgreSQL with PostGIS, `psycopg2`, `requests`, `shapely`, `geopandas`
+
+```bash
+pip install psycopg2 requests shapely geopandas
+```
+
+| Script | What It Does |
+|--------|-------------|
+| `01_extract_moose_api.py` | Fetches moose habitat and range layers from CPW ArcGIS REST API. Handles pagination and normalizes field names across endpoints. |
+| `02_setup_postgis.py` | Creates a PostGIS-enabled PostgreSQL database and spatial schema. |
+| `03_load_moose_to_postgis.py` | Loads all source GeoJSONs into PostGIS, reprojects to EPSG:26913 (UTM Zone 13N) for accurate metric calculations. |
+| `04_moose_dau_gmu_identifier.py` | Runs `ST_Intersects` to spatially join GMU boundaries to Moose Data Analysis Units. Resolves a many-to-one relationship not present in either source schema. |
+| `05_build_core_habitat.py` | Uses `ST_Intersection` to compute year-round overlap between summer and winter range. Derives `area_acres`, `overlap_index`, and `habitat_tier` (Primary / Secondary / Remnant) in SQL. |
+| `06_build_access_zones.py` | Fetches COTREX trailheads from CPW API, buffers at 10 miles (`ST_Buffer`), and dissolves overlapping zones (`ST_Union`) into a single access surface. |
 
 ---
 
-**Developed by:** [Your Name]  
-**Project Goal:** To bridge the gap between raw biological data and actionable hunter intelligence.
+## Map Layers
+
+| Layer | Source | Description |
+|-------|--------|-------------|
+| GMU Boundaries | CPW ArcGIS REST | Official game management unit polygons. Click any unit for a full intelligence popup. |
+| Habitat Quality | CPW / Script 01 | Four-tier moose habitat suitability (Excellent → Low). Guides where to spend scouting time. |
+| Year-Round Range | Scripts 03–05 | ST_Intersection of summer and winter range. Tiered by patch size. Primary areas (≥5,000 ac) are highest-probability moose locations in any season. |
+| Summer Range | CPW | Seasonal range relevant to archery season (September). |
+| Winter Range | CPW | Seasonal range relevant to rifle season (October–November). |
+| Migration Corridors | CPW | Transition zones between seasonal ranges — high-value ambush locations in early October. |
+| Moose DAUs | CPW / Script 04 | Population management units joined to GMUs via spatial query. Provides herd-level context. |
+| Moose GMUs | CPW | CPW-specific moose management unit overlays. |
+| Federal Lands | USGS/BLM SMA | USFS, BLM, NPS ownership. USFS and BLM are open to hunting; NPS is generally prohibited. |
+| SWAs & State Parks | CPW | State Wildlife Areas (require habitat stamp) and State Parks (mostly prohibit hunting). |
+| Trailhead Access Zones | COTREX / Script 06 | 10-mile buffer from all trailheads. Shows what portion of a unit is realistically reachable from a road. |
+| Trailheads | CPW COTREX API (live) | Point locations with name, managing agency, access type, and parking info. |
+| County Lines | Colorado GeoData Hub | Reference layer for geographic orientation. |
+
+---
+
+## Map Features
+
+- **Unit Intelligence Popup** — Click any GMU to open a slide-up panel with: species presence grid, habitat quality coverage, year-round range coverage, federal/state land breakdown, trailhead access percentage, and a sorted list of nearby trailheads with click-to-zoom
+- **Spatial Coverage Analysis** — Client-side 20×20 point grid with ray-casting point-in-polygon algorithm computes coverage percentages per unit with ±3% accuracy
+- **GMU Search** — Autocomplete search with keyboard navigation zooms directly to any unit
+- **GPS Locate** — Plots your position with coordinate, accuracy, and elevation readout
+- **Extent History** — Previous/next/home navigation for the map view
+- **Basemap Toggle** — Street (OSM), Satellite (Esri), Terrain/Hillshade (USGS)
+- **Layer Panel** — 13 togglable layers in grouped, collapsible categories
+
+---
+
+## Data Sources
+
+| Dataset | Source | URL |
+|---------|--------|-----|
+| GMU Boundaries | Colorado Parks & Wildlife | cpw.state.co.us |
+| Moose Habitat & Range | CPW ArcGIS REST API | services.arcgis.com |
+| Moose DAUs | CPW GIS Portal | cpw.state.co.us/gis |
+| Federal Land Ownership | USGS/BLM Surface Management Agency | navigator.blm.gov |
+| State Wildlife Areas | CPW | cpw.state.co.us/gis |
+| Trailheads | CO TREX (CPW ArcGIS API) | cotrex.org |
+| County Boundaries | Colorado GeoData Hub | data.colorado.gov |
+| Hillshade Basemap | USGS National Map | basemap.nationalmap.gov |
+
+---
+
+## 2026 Moose Regulations (Colorado)
+
+| Season | Dates |
+|--------|-------|
+| Archery | Sep 5 – Oct 3, 2026 |
+| Rifle | Oct 4 – Nov 1, 2026 |
+
+- License type: Limited Draw only — no over-the-counter tags
+- Legal animals: Any bull or antlerless (unit-specific)
+- Blaze orange: 500 sq in required during rifle season
+- Shooting hours: 30 min before sunrise to 30 min after sunset
+
+Full regulations: [cpw.state.co.us/rules-and-regulations](https://cpw.state.co.us/rules-and-regulations)
+
+---
+
+## Requirements
+
+- Modern browser (Chrome, Firefox, Edge, Safari)
+- Local web server or direct file access (some browsers block local fetch requests — use VS Code Live Server or `python -m http.server`)
+- PostgreSQL + PostGIS (for running processing scripts only)
+
+---
+
+*Built as a Senior Geospatial Analyst candidate project. Species focus: Shiras moose (Alces alces shirasi).*
