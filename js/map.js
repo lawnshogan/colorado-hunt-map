@@ -1,13 +1,10 @@
 'use strict';
 
 /* ════════════════════════════════════════════════
-   MAP — base layers, map init, pane registration,
-   layer groups, application state, extent history,
-   and GPS locate control.
-   Depends on: config.js
+   MAP — base layers, map init, panes, layer groups,
+   application state, extent history, GPS locate.
 ════════════════════════════════════════════════ */
 
-/* ── Base layers ────────────────────────────────── */
 const baseLayers = {
     osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                     { attribution:'&copy; OpenStreetMap contributors', maxZoom:19 }),
@@ -17,116 +14,108 @@ const baseLayers = {
                     { attribution:'USGS National Map', maxZoom:16, opacity:0.9 })
 };
 
-/* ── Map — autoPanPadding keeps popups clear of panels ── */
 const map = L.map('map', {
     center: CONFIG.MAP_CENTER,
-    zoom: CONFIG.MAP_ZOOM,
+    zoom:   CONFIG.MAP_ZOOM,
     layers: [baseLayers.osm],
     zoomControl: true
 });
 
-/* ── Custom popup opening with auto-pan padding ── */
-// Override map.openPopup to always push popup clear of left/right panels
+/* Auto-pan padding keeps popups clear of panels */
 const _origOpenPopup = map.openPopup.bind(map);
 map.openPopup = function(popup, latlng, options) {
     return _origOpenPopup(popup, latlng, {
-        autoPanPaddingTopLeft:    L.point(310, 70),   // clear of left panel + title
-        autoPanPaddingBottomRight: L.point(260, 60),  // clear of layer panel
+        autoPanPaddingTopLeft:     L.point(310, 70),
+        autoPanPaddingBottomRight: L.point(260, 60),
         ...options
     });
 };
 
-/* ── Panes ─────────────────────────────────────── */
+/* ── Panes (z-order) ────────────────────────── */
 const PANES = {
-    accessZonePane:340, forestRoadPane:345,
-    federalPane:350, countyPane:360,
+    waterPane:      335,   /* NHD water — below all overlays */
+    accessZonePane: 340,
+    federalPane:    350,
+    countyPane:     360,
     mooseWinterPane:370, mooseSummerPane:375,
-    mooseMigPane:380, mooseHabitatPane:385, coreHabitatPane:388,
-    mooseDauPane:390, mooseGmuPane:395, gmuPane:400,
-    swaPane:450, trailheadPane:470, labelPane:650
+    mooseMigPane:   380, mooseHabitatPane:385, coreHabitatPane:388,
+    mooseDauPane:   390, mooseGmuPane:395, gmuPane:400,
+    swaPane:        450, trailheadPane:470, labelPane:650
 };
 Object.entries(PANES).forEach(([n,z]) => { map.createPane(n); map.getPane(n).style.zIndex = z; });
 
-/* ── Layer groups ──────────────────────────────── */
+/* ── Layer groups ───────────────────────────── */
 const layers = {
-    gmu: L.layerGroup().addTo(map),
-    mooseHabitat: L.layerGroup().addTo(map),
-    coreHabitat: L.layerGroup().addTo(map), mooseDaus: L.layerGroup(), mooseGmus: L.layerGroup(),
-    mooseMigration: L.layerGroup(), mooseSummer: L.layerGroup(), mooseWinter: L.layerGroup(),
-    county: L.layerGroup(), federal: L.layerGroup(), swa: L.layerGroup(),
-    trailheads: L.layerGroup(), accessZone: L.layerGroup()
+    gmu:           L.layerGroup().addTo(map),
+    mooseHabitat:  L.layerGroup().addTo(map),
+    coreHabitat:   L.layerGroup().addTo(map),
+    mooseDaus:     L.layerGroup(),
+    mooseGmus:     L.layerGroup(),
+    mooseMigration:L.layerGroup(),
+    mooseSummer:   L.layerGroup(),
+    mooseWinter:   L.layerGroup(),
+    county:        L.layerGroup(),
+    federal:       L.layerGroup(),
+    swa:           L.layerGroup(),
+    trailheads:    L.layerGroup(),
+    accessZone:    L.layerGroup(),
+    water:         L.layerGroup()   /* NHD water tile overlay */
 };
 
-/* ── State ─────────────────────────────────────── */
+/* ── Application state ──────────────────────── */
 const state = {
-    geoJsonLayers: Object.fromEntries(Object.keys(layers).map(k=>[k,null])),
-    rawGeoJSON: { mooseHabitat:null, coreHabitat:null, federal:null, swa:null, accessZone:null },
-    trailheadFeatures: [],   // raw point features for proximity query
-    gmuFeatures: [],
-    currentSelection: null, locationMarker: null, locating: false
+    geoJsonLayers:    Object.fromEntries(Object.keys(layers).map(k=>[k,null])),
+    rawGeoJSON:       { mooseHabitat:null, coreHabitat:null, federal:null, swa:null, accessZone:null },
+    trailheadFeatures:[],
+    gmuFeatures:      [],
+    harvestData:      {},   /* keyed by unit string after JSON load */
+    currentSelection: null,
+    locationMarker:   null,
+    locating:         false
 };
 
-/* ════════════════════════════════════════════════
-   EXTENT HISTORY
-════════════════════════════════════════════════ */
-const extentHistory = { stack: [], idx: -1, recording: true };
-
+/* ── Extent history ─────────────────────────── */
+const extentHistory = { stack:[], idx:-1, recording:true };
 function recordExtent() {
     if (!extentHistory.recording) return;
-    const center = map.getCenter();
-    const zoom   = map.getZoom();
-    // Truncate forward history when navigating from mid-stack
     extentHistory.stack = extentHistory.stack.slice(0, extentHistory.idx + 1);
-    extentHistory.stack.push({ center, zoom });
+    extentHistory.stack.push({ center:map.getCenter(), zoom:map.getZoom() });
     extentHistory.idx = extentHistory.stack.length - 1;
     updateExtentBtns();
 }
-
 function updateExtentBtns() {
-    const prevBtn = document.getElementById('btn-prev-extent');
-    const nextBtn = document.getElementById('btn-next-extent');
-    prevBtn.classList.toggle('disabled', extentHistory.idx <= 0);
-    nextBtn.classList.toggle('disabled', extentHistory.idx >= extentHistory.stack.length - 1);
+    document.getElementById('btn-prev-extent').classList.toggle('disabled', extentHistory.idx <= 0);
+    document.getElementById('btn-next-extent').classList.toggle('disabled', extentHistory.idx >= extentHistory.stack.length - 1);
 }
-
 map.on('moveend', recordExtent);
-
 document.getElementById('btn-home').addEventListener('click', () => {
     extentHistory.recording = false;
     map.setView(CONFIG.MAP_CENTER, CONFIG.MAP_ZOOM);
     setTimeout(() => { extentHistory.recording = true; }, 500);
 });
-
 document.getElementById('btn-prev-extent').addEventListener('click', () => {
     if (extentHistory.idx <= 0) return;
     extentHistory.idx--;
-    const e = extentHistory.stack[extentHistory.idx];
     extentHistory.recording = false;
-    map.setView(e.center, e.zoom, { animate:true });
+    map.setView(extentHistory.stack[extentHistory.idx].center, extentHistory.stack[extentHistory.idx].zoom, {animate:true});
     setTimeout(() => { extentHistory.recording = true; updateExtentBtns(); }, 500);
     updateExtentBtns();
 });
-
 document.getElementById('btn-next-extent').addEventListener('click', () => {
     if (extentHistory.idx >= extentHistory.stack.length - 1) return;
     extentHistory.idx++;
-    const e = extentHistory.stack[extentHistory.idx];
     extentHistory.recording = false;
-    map.setView(e.center, e.zoom, { animate:true });
+    map.setView(extentHistory.stack[extentHistory.idx].center, extentHistory.stack[extentHistory.idx].zoom, {animate:true});
     setTimeout(() => { extentHistory.recording = true; updateExtentBtns(); }, 500);
     updateExtentBtns();
 });
 
-/* ════════════════════════════════════════════════
-   GPS LOCATE (wired into #nav-controls)
-════════════════════════════════════════════════ */
+/* ── GPS locate ─────────────────────────────── */
 const locateBtn = document.getElementById('locate-btn');
 L.DomEvent.disableClickPropagation(document.getElementById('nav-controls'));
-
 locateBtn.addEventListener('click', () => {
     if (state.locating) return;
-    state.locating = true;
-    locateBtn.classList.add('active');
+    state.locating = true; locateBtn.classList.add('active');
     map.locate({ setView:true, maxZoom:14 });
 });
 map.on('locationfound', e => {
@@ -135,13 +124,10 @@ map.on('locationfound', e => {
     state.locationMarker = L.circleMarker(e.latlng, {
         radius:9, fillColor:'#3498db', color:'#fff', weight:2.5, fillOpacity:0.92
     }).addTo(map);
-
     const accFt = e.accuracy ? Math.round(e.accuracy * 3.281) : null;
-    const lat   = e.latlng.lat.toFixed(5);
-    const lng   = e.latlng.lng.toFixed(5);
-    const elev  = e.altitude ? Math.round(e.altitude * 3.281) + ' ft' : '—';
-
-    const locContent = `
+    const lat = e.latlng.lat.toFixed(5), lng = e.latlng.lng.toFixed(5);
+    const elev = e.altitude ? Math.round(e.altitude * 3.281) + ' ft' : '—';
+    state.locationMarker.bindPopup(`
         <div class="loc-popup">
             <div class="loc-popup-header">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
@@ -157,8 +143,6 @@ map.on('locationfound', e => {
                 ${accFt ? `<div class="loc-row"><span class="loc-label">Accuracy</span><span class="loc-val">± ${accFt} ft</span></div>` : ''}
                 ${e.altitude ? `<div class="loc-row"><span class="loc-label">Elevation</span><span class="loc-val">${elev}</span></div>` : ''}
             </div>
-        </div>`;
-
-    state.locationMarker.bindPopup(locContent, { maxWidth:220, minWidth:180 }).openPopup();
+        </div>`, { maxWidth:220, minWidth:180 }).openPopup();
 });
 map.on('locationerror', () => { state.locating=false; locateBtn.classList.remove('active'); });
