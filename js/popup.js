@@ -174,52 +174,63 @@ function nearbyTrailheads(gmuLayer, maxMiles) {
 }
 
 /* ── NHD WATER STATS ── */
-var NHD_FTYPE_FLOW = {460:'Stream/River',558:'Stream/River',336:'Canal/Ditch',334:'Connector'};
-var NHD_FTYPE_BODY = {390:'Lake/Pond',436:'Reservoir',361:'Playa',466:'Swamp/Marsh'};
-
-/* Cross-browser timeout signal — AbortSignal.timeout() is not available in all browsers */
+/* Cross-browser timeout signal — AbortSignal.timeout() not in all browsers */
 function makeTimeoutSignal(ms) {
-    try {
-        return AbortSignal.timeout(ms);
-    } catch(e) {
-        const ctrl = new AbortController();
-        setTimeout(() => ctrl.abort(), ms);
-        return ctrl.signal;
-    }
+    try { return AbortSignal.timeout(ms); }
+    catch(e) { var c = new AbortController(); setTimeout(function(){ c.abort(); }, ms); return c.signal; }
 }
 
 async function fetchNhdStats(gmuLayer) {
     try {
-        var b = gmuLayer.getBounds();
+        var b   = gmuLayer.getBounds();
+        /* NHD REST API uses EPSG:4326 envelope: xmin,ymin,xmax,ymax */
         var env = b.getWest()+','+b.getSouth()+','+b.getEast()+','+b.getNorth();
         var base = 'https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer';
-        var qs = 'geometry='+encodeURIComponent(env)+'&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&returnGeometry=false&f=json';
-        var sig = makeTimeoutSignal(9000);
-        var [flowRes, bodyRes] = await Promise.allSettled([
-            fetch(base+'/6/query?outFields=GNIS_Name,FType,LengthKM&resultRecordCount=300&'+qs,{signal:sig}).then(function(r){return r.json();}),
-            fetch(base+'/8/query?outFields=GNIS_Name,FType,AreaSqKm&resultRecordCount=150&'+qs,{signal:sig}).then(function(r){return r.json();})
+        /* Common query params */
+        var geo  = 'geometry='+encodeURIComponent(env)
+                 + '&geometryType=esriGeometryEnvelope'
+                 + '&inSR=4326'
+                 + '&spatialRel=esriSpatialRelIntersects'
+                 + '&returnGeometry=false&f=json';
+
+        /* Layer 3 = Flow Direction (NHDFlowline) — no scale restriction, lowercase fields */
+        /* Use outStatistics to sum lengthkm in one call — bypasses 2000-record limit     */
+        var flowStats = encodeURIComponent(JSON.stringify([
+            {statisticType:'sum', onStatisticField:'lengthkm', outStatisticFieldName:'total_km'},
+            {statisticType:'count', onStatisticField:'lengthkm', outStatisticFieldName:'seg_count'}
+        ]));
+        /* Also get raw features limited to 500 just to count named features */
+        var flowNamed = 'outFields=gnis_name&where=gnis_name+IS+NOT+NULL+AND+gnis_name+<>+%27%27&resultRecordCount=500';
+
+        var sig = makeTimeoutSignal(10000);
+
+        var [statRes, namedRes, bodyRes] = await Promise.allSettled([
+            fetch(base+'/3/query?outStatistics='+flowStats+'&'+geo, {signal:sig}).then(function(r){ return r.json(); }),
+            fetch(base+'/3/query?'+flowNamed+'&'+geo, {signal:sig}).then(function(r){ return r.json(); }),
+            /* Layer 7 = NHDArea (open water polygons — lakes, ponds, reservoirs) */
+            /* Use outStatistics to sum AreaSqKm */
+            fetch(base+'/7/query?outStatistics='+encodeURIComponent(JSON.stringify([
+                {statisticType:'sum',   onStatisticField:'areasqkm',  outStatisticFieldName:'total_area'},
+                {statisticType:'count', onStatisticField:'areasqkm',  outStatisticFieldName:'body_count'}
+            ]))+'&'+geo, {signal:sig}).then(function(r){ return r.json(); })
         ]);
-        var streamMi=0, streamCount=0, streamNames=new Set();
-        if(flowRes.status==='fulfilled'&&flowRes.value&&flowRes.value.features){
-            flowRes.value.features.forEach(function(f){
-                var p=f.attributes;
-                streamMi+=(p.LengthKM||0)*0.621371;
-                streamCount++;
-                if(p.GNIS_Name&&p.GNIS_Name.trim()) streamNames.add(p.GNIS_Name.trim());
-            });
+
+        var streamMi = 0, streamCount = 0;
+        if (statRes.status === 'fulfilled' && statRes.value && statRes.value.features && statRes.value.features[0]) {
+            var attrs = statRes.value.features[0].attributes;
+            streamMi    = Math.round((attrs.total_km || 0) * 0.621371);
+            streamCount = attrs.seg_count || 0;
         }
-        var bodyAcres=0, bodyCount=0, bodyNames=new Set();
-        if(bodyRes.status==='fulfilled'&&bodyRes.value&&bodyRes.value.features){
-            bodyRes.value.features.forEach(function(f){
-                var p=f.attributes;
-                bodyAcres+=(p.AreaSqKm||0)*247.105;
-                bodyCount++;
-                if(p.GNIS_Name&&p.GNIS_Name.trim()) bodyNames.add(p.GNIS_Name.trim());
-            });
+
+        var bodyAcres = 0, bodyCount = 0;
+        if (bodyRes.status === 'fulfilled' && bodyRes.value && bodyRes.value.features && bodyRes.value.features[0]) {
+            var ba = bodyRes.value.features[0].attributes;
+            bodyAcres = Math.round((ba.total_area || 0) * 247.105);
+            bodyCount = ba.body_count || 0;
         }
-        var allNames=[...streamNames,...bodyNames].filter(Boolean);
-        return {ok:true, streamMi:Math.round(streamMi), streamCount:streamCount,
-                bodyAcres:Math.round(bodyAcres), bodyCount:bodyCount, names:allNames.slice(0,5)};
+
+        return {ok:true, streamMi:streamMi, streamCount:streamCount,
+                bodyAcres:bodyAcres, bodyCount:bodyCount};
     } catch(err) {
         console.warn('NHD stats failed:', err.message);
         return {ok:false};
@@ -228,34 +239,45 @@ async function fetchNhdStats(gmuLayer) {
 
 /* ── WATER CARD ── */
 function buildWaterCard(w) {
-    if (!w.ok) return '<div class="water-card water-card-empty"><div class="water-card-hdr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2.2" stroke-linecap="round"><path d="M12 2C6 9 3 13 3 17a9 9 0 0 0 18 0c0-4-3-8-9-15z"/></svg>Water &amp; Hydrology</div><div class="water-unavail">NHD data unavailable for this unit.</div></div>';
-    var streamLbl = w.streamMi>0 ? w.streamMi.toLocaleString()+' mi' : '—';
-    var segLbl    = w.streamCount>0 ? w.streamCount+' seg.' : '—';
-    var bodyLbl   = w.bodyAcres>0 ? w.bodyAcres.toLocaleString()+' ac' : '—';
-    var bodyCtLbl = w.bodyCount>0 ? w.bodyCount+' feat.' : '—';
-    var density   = w.streamMi>200?'High':w.streamMi>80?'Moderate':w.streamMi>0?'Low':'None';
-    var dColor    = {High:'#1a6e3c',Moderate:'#e67e22',Low:'#95a5a6',None:'#bbb'}[density];
-    var ripNote   = {
-        High:'This unit has a dense stream and drainage network — a strong indicator of quality moose habitat. Moose are semi-aquatic and depend on riparian corridors for browse (willow, alder, birch) and thermoregulation. Prioritize creek confluences, beaver ponds, and willow-choked drainages. Early mornings in October, moose commonly stage in open meadows adjacent to stream corridors before retreating to timber.',
-        Moderate:'Moderate surface water coverage. Moose will concentrate near the named drainages in this unit, especially at creek bends and meadow-stream edges. Glassing from a high vantage overlooking a drainage bottom during the first and last 30 minutes of shooting light is often more productive than covering ground.',
-        Low:'Limited surface water in this unit. Moose are still present but may travel further between feeding and bedding areas. Focus scouting on any water you can find on a topo map — even a seasonal pond or spring can anchor a bull. Cross-reference with Year-Round Range coverage to identify where moose are most likely to concentrate.',
-        None:'Minimal surface water detected by NHD for this unit. This could reflect a high-elevation or arid portion of the state. Check adjacent topographic basins and confirm with a detailed topo. Moose in water-limited areas often use areas near snowmelt drainages and north-facing slopes with dense willow and alder.'
+    if (!w.ok) {
+        return '<div class="water-card water-card-empty">' +
+            '<div class="water-card-hdr">' +
+            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2.2" stroke-linecap="round"><path d="M12 2C6 9 3 13 3 17a9 9 0 0 0 18 0c0-4-3-8-9-15z"/></svg>' +
+            'Water &amp; Hydrology</div>' +
+            '<div class="water-unavail">NHD data unavailable — check adjacent unit or enable layer.</div>' +
+            '</div>';
+    }
+
+    var streamLbl = w.streamMi   > 0 ? w.streamMi.toLocaleString()  + ' mi'  : '—';
+    var segLbl    = w.streamCount > 0 ? w.streamCount                + ' seg.' : '—';
+    var bodyLbl   = w.bodyAcres   > 0 ? w.bodyAcres.toLocaleString() + ' ac'  : '—';
+    var bodyCtLbl = w.bodyCount   > 0 ? w.bodyCount                  + ' feat.': '—';
+
+    var density = w.streamMi > 200 ? 'High' : w.streamMi > 80 ? 'Moderate' : w.streamMi > 0 ? 'Low' : 'None';
+    var dColor  = {High:'#1a6e3c', Moderate:'#e67e22', Low:'#95a5a6', None:'#bbb'}[density];
+
+    /* One concise sentence per tier */
+    var ripNote = {
+        High:     'Dense drainage network — prioritize creek confluences and willow-choked bends at dawn and dusk.',
+        Moderate: 'Focus scouting on named drainages; moose concentrate where streams widen into meadow flats.',
+        Low:      'Limited surface water — cross-reference Year-Round Range layer and look for springs on a topo.',
+        None:     'Minimal NHD water detected; verify with a detailed topo before ruling this unit out.'
     }[density];
-    var namesHtml = w.names.length
-        ? '<div class="water-names">'+w.names.slice(0,5).map(function(n){return '<span class="water-name-chip">'+n+'</span>';}).join('')+'</div>'
-        : '';
-    return '<div class="water-card">'+
-        '<div class="water-card-hdr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2.2" stroke-linecap="round"><path d="M12 2C6 9 3 13 3 17a9 9 0 0 0 18 0c0-4-3-8-9-15z"/></svg>'+
-        'Water &amp; Hydrology'+
-        '<span class="water-density-badge" style="background:'+dColor+'18;border:1px solid '+dColor+';color:'+dColor+';">'+
-        '<span style="width:5px;height:5px;border-radius:50%;background:'+dColor+';display:inline-block;flex-shrink:0;margin-right:3px;vertical-align:middle;"></span>'+density+' Density</span></div>'+
-        '<div class="water-stats-row">'+
-        '<div class="water-stat"><div class="water-stat-val">'+streamLbl+'</div><div class="water-stat-lbl">Stream Length</div></div>'+
-        '<div class="water-stat"><div class="water-stat-val">'+segLbl+'</div><div class="water-stat-lbl">Segments</div></div>'+
-        '<div class="water-stat"><div class="water-stat-val">'+bodyLbl+'</div><div class="water-stat-lbl">Lakes &amp; Ponds</div></div>'+
-        '<div class="water-stat"><div class="water-stat-val">'+bodyCtLbl+'</div><div class="water-stat-lbl">Water Bodies</div></div>'+
-        '</div>'+namesHtml+
-        '<div class="water-hunter-note">\uD83C\uDFF9 <strong>Hunter Note:</strong> '+ripNote+'</div>'+
+
+    return '<div class="water-card">' +
+        '<div class="water-card-hdr">' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2.2" stroke-linecap="round"><path d="M12 2C6 9 3 13 3 17a9 9 0 0 0 18 0c0-4-3-8-9-15z"/></svg>' +
+        'Water &amp; Hydrology' +
+        '<span class="water-density-badge" style="background:'+dColor+'18;border:1px solid '+dColor+';color:'+dColor+';">' +
+        '<span style="width:5px;height:5px;border-radius:50%;background:'+dColor+';display:inline-block;flex-shrink:0;margin-right:3px;vertical-align:middle;"></span>' +
+        density+' Density</span></div>' +
+        '<div class="water-stats-row">' +
+        '<div class="water-stat"><div class="water-stat-val">'+streamLbl+'</div><div class="water-stat-lbl">Stream Length</div></div>' +
+        '<div class="water-stat"><div class="water-stat-val">'+segLbl+'</div><div class="water-stat-lbl">Segments</div></div>' +
+        '<div class="water-stat"><div class="water-stat-val">'+bodyLbl+'</div><div class="water-stat-lbl">Lakes &amp; Ponds</div></div>' +
+        '<div class="water-stat"><div class="water-stat-val">'+bodyCtLbl+'</div><div class="water-stat-lbl">Water Bodies</div></div>' +
+        '</div>' +
+        '<div class="water-hunter-note">\uD83C\uDFF9 <strong>Hunter Note:</strong> '+ripNote+'</div>' +
         '</div>';
 }
 
@@ -440,24 +462,30 @@ function buildGmuPopupContent(leafletLayer) {
                 if(chkD&&!chkD.checked){chkD.checked=true;if(chkM)chkM.checked=true;map.addLayer(layers.trailheads);}
                 minimizeDock();
                 map.setView([lat, lng], 13, { animate: true });
-                map.once('moveend',function(){
-                    var found=false;
-                    layers.trailheads.eachLayer(function(child){
-                        if(found) return;
-                        /* child may be the L.geoJSON layer (has eachLayer) or a direct CircleMarker */
+
+                /* setTimeout is more reliable than map.once('moveend') —
+                   ensures the map has fully panned before openPopup is called. */
+                setTimeout(function() {
+                    var found = false;
+                    layers.trailheads.eachLayer(function(child) {
+                        if (found) return;
                         var scan = child.eachLayer ? child : null;
-                        if(scan){
-                            scan.eachLayer(function(marker){
-                                if(found||!marker.getLatLng) return;
-                                var ml=marker.getLatLng();
-                                if(Math.abs(ml.lat-lat)<0.00015&&Math.abs(ml.lng-lng)<0.00015){found=true;marker.openPopup();}
+                        if (scan) {
+                            scan.eachLayer(function(marker) {
+                                if (found || !marker.getLatLng) return;
+                                var ml = marker.getLatLng();
+                                if (Math.abs(ml.lat-lat) < 0.00015 && Math.abs(ml.lng-lng) < 0.00015) {
+                                    found = true; marker.openPopup();
+                                }
                             });
-                        } else if(child.getLatLng){
-                            var ml=child.getLatLng();
-                            if(Math.abs(ml.lat-lat)<0.00015&&Math.abs(ml.lng-lng)<0.00015){found=true;child.openPopup();}
+                        } else if (child.getLatLng) {
+                            var ml = child.getLatLng();
+                            if (Math.abs(ml.lat-lat) < 0.00015 && Math.abs(ml.lng-lng) < 0.00015) {
+                                found = true; child.openPopup();
+                            }
                         }
                     });
-                });
+                }, 450);
             });
         });
     }, 10);

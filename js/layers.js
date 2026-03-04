@@ -1,9 +1,8 @@
 'use strict';
 
 /* ════════════════════════════════════════════════
-   LAYERS — all individual data-fetch functions,
-   generic loaders, popup builders, zoomToGmu,
-   map click handler, and the async INIT entry point.
+   LAYERS — all data-fetch functions, popup builders,
+   zoomToGmu, and the async INIT entry point.
    Depends on: config.js, map.js, ui.js, popup.js
 ════════════════════════════════════════════════ */
 
@@ -34,6 +33,8 @@ const getFederalStyle = a => ({
 
 /** Semi-transparent fill layer (summer, winter, migration) — non-interactive */
 const loadMooseLayer = async ({ path, stateKey, layerGroup, pane, fillColor, fillOpacity=0.35, borderColor='#555', label }) => {
+    /* Guard: skip silently if path is undefined (config key missing in deployed version) */
+    if (!path) { console.warn(`⚠ ${label}: path not configured, skipping`); return; }
     try {
         const data = await fetch(path).then(r => { if (!r.ok) throw Error(`HTTP ${r.status}`); return r.json(); });
         state.geoJsonLayers[stateKey] = L.geoJSON(data, {
@@ -49,21 +50,23 @@ const loadMooseLayer = async ({ path, stateKey, layerGroup, pane, fillColor, fil
 const loadDauLayer = async ({ apiUrl, fallbackPath, stateKey, layerGroup, pane, color, label }) => {
     let data = null;
 
-    try {
-        let signal;
-        try { signal = AbortSignal.timeout(12000); }
-        catch(e) { const c = new AbortController(); setTimeout(() => c.abort(), 12000); signal = c.signal; }
-        const r = await fetch(apiUrl, { signal });
-        if (r.ok) {
-            data = await r.json();
-            if (!data.features?.length) data = null;
-            else console.log(`✓ ${label} (live API, ${data.features.length} features)`);
+    if (apiUrl) {
+        try {
+            let signal;
+            try { signal = AbortSignal.timeout(12000); }
+            catch(e) { const c = new AbortController(); setTimeout(() => c.abort(), 12000); signal = c.signal; }
+            const r = await fetch(apiUrl, { signal });
+            if (r.ok) {
+                data = await r.json();
+                if (!data.features?.length) data = null;
+                else console.log(`✓ ${label} (live API, ${data.features.length} features)`);
+            }
+        } catch(err) {
+            console.warn(`⚠ ${label} API unavailable — using local file:`, err.message);
         }
-    } catch(err) {
-        console.warn(`⚠ ${label} API unavailable — using local file:`, err.message);
     }
 
-    if (!data) {
+    if (!data && fallbackPath) {
         try {
             const r = await fetch(fallbackPath);
             if (r.ok) {
@@ -101,6 +104,7 @@ const loadDauLayer = async ({ apiUrl, fallbackPath, stateKey, layerGroup, pane, 
 ════════════════════════════════════════════════ */
 
 const loadHarvestData = async () => {
+    if (!CONFIG.DATA_PATHS.harvest2024) { console.warn('⚠ Harvest data: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.harvest2024).then(r => {
             if (!r.ok) throw Error(`HTTP ${r.status}`);
@@ -109,12 +113,13 @@ const loadHarvestData = async () => {
         state.harvestData = data.units || {};
         console.log(`✓ Harvest data (${Object.keys(state.harvestData).length} units)`);
     } catch(err) {
-        console.warn('⚠ Harvest data (run scripts/process_harvest_data.py first):', err.message);
+        console.warn('⚠ Harvest data:', err.message);
     }
 };
 
 /** GMU boundaries — interactive, triggers dock popup */
 const loadGmuData = async () => {
+    if (!CONFIG.DATA_PATHS.gmus) { console.error('GMU path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.gmus).then(r => r.json());
         state.gmuFeatures = data.features;
@@ -132,9 +137,9 @@ const loadGmuData = async () => {
     } catch(err) { console.error('GMU load error:', err); }
 };
 
-/** Habitat quality — 4-colour ramp, rich click popup
-    IMPORTANT: mouseover/mouseout only touch THIS feature — resetStyle(layer) not resetStyle() */
+/** Habitat quality — 4-colour ramp, rich click popup */
 const loadMooseHabitatData = async () => {
+    if (!CONFIG.DATA_PATHS.mooseHabitat) { console.warn('⚠ Habitat: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.mooseHabitat).then(r => r.json());
         state.rawGeoJSON.mooseHabitat = data.features;
@@ -147,16 +152,8 @@ const loadMooseHabitatData = async () => {
             onEachFeature: (f, layer) => {
                 layer.bindPopup(buildHabitatPopup(f.properties), { maxWidth:300 });
                 layer.on({
-                    mouseover: () => {
-                        layer.setStyle({ fillOpacity:0.88, weight:1.8 });
-                        layer.bringToFront();
-                    },
-                    mouseout: () => {
-                        /* resetStyle with explicit layer arg — only resets THIS feature */
-                        if (state.geoJsonLayers.mooseHabitat) {
-                            state.geoJsonLayers.mooseHabitat.resetStyle(layer);
-                        }
-                    }
+                    mouseover: () => { layer.setStyle({ fillOpacity:0.88, weight:1.8 }); layer.bringToFront(); },
+                    mouseout:  () => { if (state.geoJsonLayers.mooseHabitat) state.geoJsonLayers.mooseHabitat.resetStyle(layer); }
                 });
             }
         }).addTo(layers.mooseHabitat);
@@ -166,6 +163,7 @@ const loadMooseHabitatData = async () => {
 
 /** Year-Round Range — tier-coloured, rich click popup */
 const loadCoreHabitatData = async () => {
+    if (!CONFIG.DATA_PATHS.coreHabitat) { console.warn('⚠ Year-Round Range: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.coreHabitat).then(r => r.json());
         state.rawGeoJSON.coreHabitat = data.features;
@@ -178,15 +176,8 @@ const loadCoreHabitatData = async () => {
             onEachFeature: (f, layer) => {
                 layer.bindPopup(buildRangePopup(f.properties), { maxWidth:300 });
                 layer.on({
-                    mouseover: () => {
-                        layer.setStyle({ fillOpacity:0.9, weight:2.5 });
-                        layer.bringToFront();
-                    },
-                    mouseout: () => {
-                        if (state.geoJsonLayers.coreHabitat) {
-                            state.geoJsonLayers.coreHabitat.resetStyle(layer);
-                        }
-                    }
+                    mouseover: () => { layer.setStyle({ fillOpacity:0.9, weight:2.5 }); layer.bringToFront(); },
+                    mouseout:  () => { if (state.geoJsonLayers.coreHabitat) state.geoJsonLayers.coreHabitat.resetStyle(layer); }
                 });
             }
         }).addTo(layers.coreHabitat);
@@ -196,6 +187,7 @@ const loadCoreHabitatData = async () => {
 
 /** County lines — muted red dashed, non-interactive */
 const loadCountyData = async () => {
+    if (!CONFIG.DATA_PATHS.counties) { console.warn('⚠ Counties: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.counties).then(r => r.json());
         state.geoJsonLayers.county = L.geoJSON(data, {
@@ -217,6 +209,7 @@ const loadCountyData = async () => {
 
 /** Federal lands */
 const loadFederalData = async () => {
+    if (!CONFIG.DATA_PATHS.federal) { console.warn('⚠ Federal: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.federal).then(r => r.json());
         state.rawGeoJSON.federal = data.features;
@@ -233,6 +226,7 @@ const loadFederalData = async () => {
 
 /** State Wildlife Areas and State Parks */
 const loadSwaData = async () => {
+    if (!CONFIG.DATA_PATHS.swas) { console.warn('⚠ SWAs: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.swas).then(r => r.json());
         state.rawGeoJSON.swa = data.features;
@@ -249,6 +243,7 @@ const loadSwaData = async () => {
 
 /** Trailhead Access Zones — rich click popup */
 const loadAccessZoneData = async () => {
+    if (!CONFIG.DATA_PATHS.accessZone) { console.warn('⚠ Access Zones: path not configured'); return; }
     try {
         const data = await fetch(CONFIG.DATA_PATHS.accessZone).then(r => {
             if (!r.ok) throw Error(`HTTP ${r.status}`);
@@ -261,23 +256,17 @@ const loadAccessZoneData = async () => {
             onEachFeature: (f, layer) => {
                 layer.bindPopup(buildAccessZonePopup(f.properties), { maxWidth:300 });
                 layer.on({
-                    mouseover: () => {
-                        layer.setStyle({ fillOpacity:0.35, weight:2 });
-                        layer.bringToFront();
-                    },
-                    mouseout: () => {
-                        if (state.geoJsonLayers.accessZone) {
-                            state.geoJsonLayers.accessZone.resetStyle(layer);
-                        }
-                    }
+                    mouseover: () => { layer.setStyle({ fillOpacity:0.35, weight:2 }); layer.bringToFront(); },
+                    mouseout:  () => { if (state.geoJsonLayers.accessZone) state.geoJsonLayers.accessZone.resetStyle(layer); }
                 });
             }
         }).addTo(layers.accessZone);
         console.log('✓ Trailhead Access Zones');
-    } catch(err) { console.warn('⚠ Access Zones (run scripts/06_build_access_zones.py first):', err.message); }
+    } catch(err) { console.warn('⚠ Access Zones:', err.message); }
 };
 
-/** Trailheads — live CO TREX API */
+/** Trailheads — live CPW TREX API
+    Popup: clean name + coordinates, matching the loc-popup style. */
 const loadTrailheadData = async () => {
     try {
         const data = await fetch(CONFIG.API.trailheads).then(r => {
@@ -292,11 +281,12 @@ const loadTrailheadData = async () => {
             }),
             onEachFeature: (f, layer) => {
                 const p    = f.properties;
-                const name = p.name||p.Name||p.NAME||p.TrlhdName||p.TrailheadName||
-                             p.TRAILHEADNAME||p.Trailhead_Name||p.trailhead_name||'Trailhead';
+                const name = p.name || p.Name || p.NAME || p.TrlhdName || p.TrailheadName ||
+                             p.TRAILHEADNAME || p.Trailhead_Name || p.trailhead_name || 'Trailhead';
                 const latlng = layer.getLatLng();
                 const lat    = latlng.lat.toFixed(5);
                 const lng    = latlng.lng.toFixed(5);
+
                 layer.bindTooltip(name, { className:'trail-label' });
                 layer.bindPopup(`
                     <div class="loc-popup">
@@ -312,10 +302,13 @@ const loadTrailheadData = async () => {
                             <div class="loc-row"><span class="loc-label">Longitude</span><span class="loc-val">${lng}°</span></div>
                         </div>
                     </div>`, { maxWidth:240, minWidth:200 });
+
+                /* Click on map marker: zoom to it and open popup.
+                   Use a short delay so popup renders inside the new viewport. */
                 layer.on('click', e => {
                     L.DomEvent.stopPropagation(e);
                     map.setView(layer.getLatLng(), 13, { animate:true });
-                    layer.openPopup();
+                    setTimeout(() => layer.openPopup(), 350);
                 });
             }
         }).addTo(layers.trailheads);
@@ -323,17 +316,11 @@ const loadTrailheadData = async () => {
     } catch(err) { console.warn('⚠ Trailheads API:', err.message); }
 };
 
-/** NHD Water — USGS tile service
-    Tries multiple known-good endpoints in order.
-    The USGS periodically migrates services so we have fallbacks. */
+/** NHD Water — USGS tile service with fallback endpoints */
 const loadWaterLayer = () => {
-    /* Ordered list of USGS NHD tile endpoints — first one that loads wins */
     const NHD_URLS = [
-        /* Primary: USGS Hydro endpoint (most reliable as of 2025) */
         'https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/tile/{z}/{y}/{x}',
-        /* Fallback 1: TNM basemap with hydro overlay */
         'https://basemap.nationalmap.gov/arcgis/rest/services/USGSHydroCached/MapServer/tile/{z}/{y}/{x}',
-        /* Fallback 2: WMS-based approach via alternative tile path */
         'https://hydro.nationalmap.gov/arcgis/rest/services/NHDPlus_HR/MapServer/tile/{z}/{y}/{x}'
     ];
 
@@ -342,23 +329,15 @@ const loadWaterLayer = () => {
 
     const tryUrl = (urls, idx) => {
         if (idx >= urls.length) {
-            console.warn('⚠ NHD Water: all tile endpoints failed — layer will appear empty');
+            console.warn('⚠ NHD Water: all tile endpoints failed');
             return;
         }
         tileLayer = L.tileLayer(urls[idx], {
             attribution: '<a href="https://www.usgs.gov/national-hydrography" target="_blank">USGS NHD</a>',
-            maxZoom: 19,
-            opacity: 0.80,
-            pane: 'waterPane',
-            errorTileUrl: ''   /* suppress red error tiles */
+            maxZoom: 19, opacity: 0.80, pane: 'waterPane', errorTileUrl: ''
         });
-
-        /* Test if tiles actually load by listening for the first tile event */
         tileLayer.once('tileload', () => {
-            if (!loaded) {
-                loaded = true;
-                console.log(`✓ NHD Water (tile service, URL index ${idx})`);
-            }
+            if (!loaded) { loaded = true; console.log(`✓ NHD Water (tile index ${idx})`); }
         });
         tileLayer.once('tileerror', () => {
             if (!loaded) {
@@ -367,7 +346,6 @@ const loadWaterLayer = () => {
                 tryUrl(urls, idx + 1);
             }
         });
-
         layers.water.clearLayers();
         tileLayer.addTo(layers.water);
         state.geoJsonLayers.water = tileLayer;
@@ -384,7 +362,6 @@ const zoomToGmu = id => {
     if (!s || !state.geoJsonLayers.gmu) return;
     state.geoJsonLayers.gmu.eachLayer(layer => {
         if (String(layer.feature.properties.GMUID) === s) {
-            /* Restore old selection before applying new */
             if (state.currentSelection && state.currentSelection !== layer) {
                 restoreLayerStyle(state.currentSelection);
             }
@@ -425,9 +402,9 @@ map.on('click', () => {
         loadCountyData(),
         loadAccessZoneData(),
         loadTrailheadData(),
-        loadMooseLayer({ path:CONFIG.DATA_PATHS.mooseSummer,    stateKey:'mooseSummer',    layerGroup:layers.mooseSummer,    pane:'mooseSummerPane',  fillColor:'#f39c12', label:'Moose Summer Range'       }),
-        loadMooseLayer({ path:CONFIG.DATA_PATHS.mooseWinter,    stateKey:'mooseWinter',    layerGroup:layers.mooseWinter,    pane:'mooseWinterPane',  fillColor:'#3498db', label:'Moose Winter Range'       }),
-        loadMooseLayer({ path:CONFIG.DATA_PATHS.mooseMigration, stateKey:'mooseMigration', layerGroup:layers.mooseMigration, pane:'mooseMigPane',     fillColor:'#9b59b6', label:'Moose Migration Corridors'}),
+        loadMooseLayer({ path:CONFIG.DATA_PATHS.mooseSummer,    stateKey:'mooseSummer',    layerGroup:layers.mooseSummer,    pane:'mooseSummerPane',  fillColor:'#f39c12', label:'Moose Summer Range'        }),
+        loadMooseLayer({ path:CONFIG.DATA_PATHS.mooseWinter,    stateKey:'mooseWinter',    layerGroup:layers.mooseWinter,    pane:'mooseWinterPane',  fillColor:'#3498db', label:'Moose Winter Range'        }),
+        loadMooseLayer({ path:CONFIG.DATA_PATHS.mooseMigration, stateKey:'mooseMigration', layerGroup:layers.mooseMigration, pane:'mooseMigPane',     fillColor:'#9b59b6', label:'Moose Migration Corridors' }),
         loadDauLayer({
             apiUrl:       CONFIG.API.mooseDaus,
             fallbackPath: CONFIG.DATA_PATHS.mooseDaus,
