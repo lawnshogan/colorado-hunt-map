@@ -1,14 +1,5 @@
 # Colorado Moose Finder
 
-### Geospatial Hunt-Unit Intelligence Platform · Colorado Parks & Wildlife Data
-
-[![Status](https://img.shields.io/badge/status-active-success.svg)](#)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
-[![Data Source](https://img.shields.io/badge/data-CPW%20ArcGIS%20REST%20API-orange.svg)](https://services5.arcgis.com/ttNGmDvKQA7oeDQ3/)
-[![Built With](https://img.shields.io/badge/built%20with-Leaflet%201.9.4-green.svg)](https://leafletjs.com/)
-
----
-
 ## Overview
 
 **Colorado Moose Finder** is an interactive, browser-based GIS application designed to help hunters research Colorado moose hunting units before and during the field season. The platform integrates live and pre-processed spatial datasets from Colorado Parks & Wildlife (CPW) and the CO TREX trail network to deliver unit-level hunting intelligence in a single, fast, mobile-capable interface — with no account, software installation, or server required.
@@ -21,7 +12,9 @@ The application demonstrates a complete data engineering and GIS development wor
 
 ## Live Map
 
-Open `index.html` in a browser, or serve via:
+You can view the live map here: https://lawnshogan.github.io/colorado-hunt-map/
+
+OR open `index.html` in a browser, or serve via:
 
 ```bash
 python -m http.server 8000
@@ -249,65 +242,6 @@ Full regulations: [cpw.state.co.us/rules-and-regulations](https://cpw.state.co.u
 📄 **2026 Big Game Brochure:** [Download PDF](https://drive.google.com/uc?export=download&id=REPLACE_WITH_FILE_ID)
 
 > **To update the brochure link:** Open your Google Drive file → Share → "Anyone with the link" → copy the URL. Extract the `FILE_ID` from `https://drive.google.com/file/d/FILE_ID/view` and replace `REPLACE_WITH_FILE_ID` above and in `index.html`.
-
----
-
-## Setup & Running Locally
-
-### Prerequisites
-
-- Python 3.11+
-- PostgreSQL 15 + PostGIS 3.4
-- Any HTTP server (Python built-in works fine)
-
-### Install Python dependencies
-
-```bash
-pip install requests geopandas shapely psycopg2-binary sqlalchemy
-```
-
-### Run the data pipeline (once)
-
-```bash
-python scripts/01_extract_moose_api.py
-python scripts/02_setup_postgis.py
-python scripts/03_load_moose_to_postgis.py
-python scripts/04_moose_dau_gmu_identifier.py
-python scripts/05_build_core_habitat.py
-python scripts/06_build_access_zones.py
-python scripts/process_harvest_data.py        # generates moose_harvest_2024.json
-```
-
-### Serve the map
-
-```bash
-# From project root
-python -m http.server 8000
-# Open http://localhost:8000
-```
-
-### Mobile testing (same WiFi network)
-
-```bash
-python -m http.server 8000 --bind 0.0.0.0
-# Navigate to http://<your-local-ip>:8000 on phone
-```
-
-> Some browsers block `fetch()` requests when `index.html` is opened directly as a file. Use VS Code Live Server or `python -m http.server` to avoid this.
-
----
-
-## Architecture Notes
-
-**Why no framework?** The application uses vanilla JavaScript in a strict modular file structure (`config → map → ui → popup → layers`) to demonstrate core GIS and JavaScript competency without build-toolchain abstraction. Every spatial operation — point-in-polygon, Haversine distance, ray casting — is implemented from scratch.
-
-**Client-side spatial analysis:** The 20×20 grid coverage estimator samples 441 points per GMU through a pure-JavaScript ray-casting PIP algorithm, completing in 50–150 ms with ±3% accuracy. Coverage renders immediately on GMU click with no server round-trip.
-
-**Asynchronous water card:** NHD water statistics are fetched in the background after the popup renders. Coverage data appears instantly; the water card updates in-place when the NHD API responds (~1–3 sec on a normal connection).
-
-**DAU layer resilience:** The Moose DAU and GMU layers attempt a live fetch from the CPW ArcGIS REST API first. If the API is unavailable or returns empty, the loader automatically falls back to pre-processed local GeoJSON. Field names are resolved dynamically across all known CPW attribute variants.
-
-**Species huntability detection:** CPW's GMU boundary GeoJSON includes DAU-ID attributes for each major big-game species. A non-trivial value (length ≥ 2, not `"0"`, not a `"99…"` placeholder) confirms an active Data Analysis Unit for that species in that GMU.
 
 ---
 
