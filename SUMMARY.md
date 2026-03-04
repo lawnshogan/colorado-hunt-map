@@ -143,3 +143,96 @@ He books his campsite and starts packing.
 - Species huntability read directly from CPW GMU boundary attributes (`MOOSEDAU`, `ELKDAU`, etc.) — a non-trivial DAU code confirms active management for that species in that unit
 - NHD water rendered as a tile layer (zero memory overhead vs. GeoJSON vector)
 - 2024 statewide totals: 670 licenses · 501 harvested · 79% overall success rate
+
+
+
+______________________________________________________________________________________________________________________________________________________
+
+
+
+# Colorado Moose Finder
+### Project Summary — Interview Submission
+
+---
+
+## Overview
+
+Colorado Moose Finder is an end-to-end geospatial application I built to turn raw CPW biological data into actionable hunting intelligence. It covers the full stack: automated data extraction from a live REST API, spatial enrichment through a PostGIS pipeline, and a browser-based interactive map with real-time client-side analysis. The goal was to answer the questions a serious hunter actually asks — not just "where is moose habitat" but "how much of *my unit* is Excellent habitat, what does the 10-year access picture look like, and is there water nearby."
+
+The application runs entirely in the browser with no server, no framework dependencies, and no API keys required for the core experience.
+
+---
+
+## Technical Architecture
+
+**Data Pipeline (Python / PostGIS)**
+
+Source data is extracted from the CPW ArcGIS REST API via a Python script that pulls GeoJSON for moose DAUs, GMUs, and all five seasonal range layers. That data is loaded into a local PostGIS instance, re-projected to EPSG:4326, and spatially indexed. A subsequent enrichment script runs a nearest-neighbor spatial join (`sjoin_nearest`) to reconcile habitat polygon boundaries with GMU boundaries — solving a common "slivers" problem where administrative boundaries don't align with biological survey polygons. Habitat quality is classified through a keyword-scan heuristic on metadata fields (willow, riparian, concentration, winter) and a quantile fallback that flags the top 15% of polygons by area-weighted significance when metadata is absent.
+
+A separate pre-processing step buffers each trailhead in Colorado's TREX dataset by 10 miles using `ST_Buffer` in PostGIS and dissolves the result into a single access zone layer per trailhead. That output is stored as static GeoJSON and served directly — no runtime buffering required.
+
+Harvest data is sourced from CPW's official 2024 statewide moose harvest PDF report. I wrote a processing script that extracts unit-level statistics (licenses, hunters, harvested, average hunt days), computes percentile thresholds across all 65 reporting units, and assigns tiered success ratings (High / Medium / Low) based on where each unit falls in the statewide distribution. The result is a lightweight JSON lookup loaded at application startup.
+
+**Frontend (Leaflet.js / Vanilla JS)**
+
+The frontend is organized into five modules loaded in dependency order: `config → map → ui → popup → layers`. There is no build step — just five script tags. Keeping it framework-free was intentional; the application targets field use on mobile browsers where load time and memory matter more than developer convenience.
+
+Layer rendering uses custom Leaflet panes with explicit z-ordering across 13 depth levels, ensuring labels and boundaries remain legible over semi-transparent habitat fills at all zoom levels.
+
+The most technically interesting piece is the client-side spatial coverage analysis. When a user clicks a GMU boundary, the application runs a 20×20 grid of sample points across the unit bounding box, tests each point against every loaded polygon layer using a pure JavaScript ray-casting point-in-polygon algorithm, and returns percentage breakdowns by habitat quality, year-round range tier, federal land type, state land type, and trailhead access coverage — all in approximately 50–150 milliseconds per unit with no server call required.
+
+Trailhead proximity uses the Haversine formula to compute straight-line distance from the GMU centroid to each of the 2,000 loaded trailhead points, filtering to those within 10 miles and displaying them as a sorted, clickable list.
+
+Water data is pulled at popup-open time from the USGS NHD ArcGIS REST service — two parallel queries (flowlines + waterbodies) against the GMU bounding box return stream mileage, segment count, lake/pond acreage, and named features. This is displayed with a density rating and actionable hunting guidance derived from the numbers.
+
+---
+
+## What the Application Does for a Hunter
+
+When a hunter draws a tag for an unfamiliar unit, the typical research process takes hours across multiple disconnected sources: CPW regulations, onX or Gaia for terrain, separate PDFs for harvest stats, and a lot of guesswork about where the animals actually concentrate. Colorado Moose Finder pulls that into a single interface.
+
+Clicking a GMU boundary immediately surfaces: which species are actively managed there (read directly from CPW attribute fields), the 2024 harvest statistics with statewide context, a computed coverage breakdown across habitat quality, federal and state land access, and trailhead proximity. Named water features and stream density from USGS NHD data provide riparian context — relevant because moose habitat quality tracks closely with stream miles and willow density.
+
+The layer stack supports 12 independent overlays across five groups, with desktop checkboxes mirrored to a mobile panel, mutual-collapse behavior between panels, and a slide-up dock that keeps the map fully interactive even while detailed unit data is displayed.
+
+---
+
+## Data Sources
+
+| Dataset | Source | Update Method |
+|---|---|---|
+| GMU Boundaries | CPW ArcGIS REST API | Fetched at load |
+| Moose DAUs / GMUs | CPW ArcGIS REST API (w/ local fallback) | Fetched at load |
+| Moose Habitat Quality | CPW / PostGIS enrichment | Static GeoJSON |
+| Year-Round Range | CPW / PostGIS (build_core_habitat.py) | Static GeoJSON |
+| Seasonal Ranges | CPW ArcGIS REST API | Static GeoJSON |
+| Trailheads | CPW TREX API (2,000 points) | Fetched at load |
+| Trailhead Access Zones | PostGIS ST_Buffer pre-processed | Static GeoJSON |
+| Federal Lands | BLM Surface Management Agency | Static GeoJSON |
+| State Wildlife Areas | CPW | Static GeoJSON |
+| 2024 Harvest Statistics | CPW Annual Report (PDF → JSON) | Static JSON |
+| NHD Streams & Lakes | USGS NHD (tiles + REST query) | Fetched on demand |
+
+---
+
+## Stack
+
+Python 3.13 · PostgreSQL 16 + PostGIS 3.4 · GeoPandas · Shapely · Leaflet.js 1.9 · HTML5 / CSS3 · Vanilla JavaScript (ES2020) · USGS NHD REST API · CPW ArcGIS REST API
+
+---
+
+## Key Numbers
+
+- **65** units with harvest data parsed from CPW 2024 annual report
+- **79%** statewide moose harvest success rate (2024)
+- **2,000** trailhead points loaded from CPW TREX
+- **20×20 = 441** sample points per GMU in the coverage analysis
+- **50–150 ms** typical coverage analysis runtime per unit
+- **±3%** estimated accuracy of the ray-casting grid method
+- **12** independent map layers across 5 groups
+- **13** custom Leaflet render panes for z-order management
+- **0** external API keys required · **0** framework dependencies · **0** server-side rendering
+
+---
+
+*Built by Shawn Logan · Colorado Moose Finder · 2026*
