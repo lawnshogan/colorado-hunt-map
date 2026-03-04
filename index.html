@@ -2,60 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Colorado Moose Finder</title>
-
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-    <!-- Application styles -->
     <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 <div id="map"></div>
 
 <!-- ══════════════════════════════════════════════
-     LEFT PANEL — title + collapsible body, flush
+     LEFT PANEL
+     Desktop : 282 px fixed top-left
+     Mobile  : full-width fixed top bar, centered title
 ══════════════════════════════════════════════ -->
 <div id="left-panel">
 
-    <!-- Persistent title bar -->
+    <!-- Title bar — always visible -->
     <div id="title-bar">
         <svg class="title-icon" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="white" stroke-width="1.8"/>
-            <circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.8"/>
+            <circle cx="12" cy="12" r="4"  stroke="white" stroke-width="1.8"/>
             <circle cx="12" cy="12" r="1.5" fill="white"/>
-            <line x1="12" y1="2" x2="12" y2="6" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="12" y1="2"  x2="12" y2="6"  stroke="white" stroke-width="1.8" stroke-linecap="round"/>
             <line x1="12" y1="18" x2="12" y2="22" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-            <line x1="2" y1="12" x2="6" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+            <line x1="2"  y1="12" x2="6"  y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
             <line x1="18" y1="12" x2="22" y2="12" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
-        <div>
+        <div class="title-text-group">
             <div class="title-text">Colorado Moose Finder</div>
             <div class="title-sub">Hunt Unit Intelligence · CPW Data</div>
         </div>
     </div>
 
-    <!-- Collapse toggle strip — flush below title -->
-    <div id="cmd-toggle">
+    <!-- Section 1 toggle — collapsed by default (arrow ▲ = click to expand) -->
+    <div id="cmd-toggle" class="alone">
         <span>Unit Search &amp; Info</span>
-        <span id="cmd-arrow">▼</span>
+        <span id="cmd-arrow">▲</span>
     </div>
 
-    <!-- Collapsible body -->
-    <div id="cmd-body">
+    <!-- Collapsible body — starts hidden -->
+    <div id="cmd-body" class="collapsed">
 
-        <!-- GMU Search -->
+        <!-- GMU search -->
         <div style="position:relative;">
             <div class="search-wrap">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2c3e50" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
-                <input type="text" id="gmu-search-input" placeholder="Search GMU number…" autocomplete="off" aria-label="Search GMU">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2c3e50" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+                </svg>
+                <input type="text" id="gmu-search-input" placeholder="Search Unit Number…" autocomplete="off" aria-label="Search unit number">
                 <button id="search-btn">GO</button>
             </div>
             <div id="gmu-autocomplete"></div>
         </div>
 
-        <!-- Regulations — collapsible sub-section -->
+        <!-- 2026 Regulations — collapsible sub-section -->
         <div class="cmd-section regs-toggle" id="regs-toggle">
             <span>2026 Moose Hunt Regulations</span>
             <span class="regs-arrow open" id="regs-arrow">▲</span>
@@ -83,61 +83,113 @@
             <span class="regs-arrow open" id="res-arrow">▲</span>
         </div>
         <div id="res-body">
-        <div class="quicklinks" style="margin-top:5px;">
-            <a href="docs/brochure_2026.pdf" target="_blank" class="ql-btn green">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                2026 Brochure
-            </a>
-            <a href="https://cpw.state.co.us/rules-and-regulations" target="_blank" class="ql-btn blue">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                CPW Regs
-            </a>
-            <a href="https://www.cotrex.org/" target="_blank" class="ql-btn orange">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
-                CO TREX
-            </a>
-            <a href="https://cpw.state.co.us/activities/hunting/big-game/hunting-moose" target="_blank" class="ql-btn grey">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                Moose Info
-            </a>
-            <!-- Draw odds / license portal — very useful for new hunters -->
-            <a href="https://cpw.state.co.us/activities/hunting/big-game/primary-draw" target="_blank" class="ql-btn purple">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                    <line x1="8" y1="14" x2="16" y2="14"/><line x1="12" y1="14" x2="12" y2="18"/>
-                </svg>
-                Draw &amp; Odds
-            </a>
-            <a href="https://www.onxmaps.com/" target="_blank" class="ql-btn red">
-                <!-- onX X mark -->
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                    <line x1="4" y1="4" x2="20" y2="20" stroke="#b71c1c" stroke-width="3" stroke-linecap="round"/>
-                    <line x1="20" y1="4" x2="4" y2="20" stroke="#b71c1c" stroke-width="3" stroke-linecap="round"/>
-                </svg>
-                onX Maps
-            </a>
-        </div><!-- /quicklinks -->
-        </div><!-- /res-body -->
+            <div class="quicklinks" style="margin-top:5px;">
+                <a href="docs/brochure_2026.pdf" target="_blank" class="ql-btn green">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    2026 Brochure
+                </a>
+                <a href="https://cpw.state.co.us/rules-and-regulations" target="_blank" class="ql-btn blue">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    CPW Regs
+                </a>
+                <a href="https://www.cotrex.org/" target="_blank" class="ql-btn orange">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                    CO TREX
+                </a>
+                <a href="https://cpw.state.co.us/activities/hunting/big-game/hunting-moose" target="_blank" class="ql-btn grey">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    Moose Info
+                </a>
+                <a href="https://cpw.state.co.us/activities/hunting/big-game/primary-draw" target="_blank" class="ql-btn purple">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <rect x="3" y="4" width="18" height="18" rx="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                        <line x1="8" y1="14" x2="16" y2="14"/><line x1="12" y1="14" x2="12" y2="18"/>
+                    </svg>
+                    Draw &amp; Odds
+                </a>
+                <a href="https://www.onxmaps.com/" target="_blank" class="ql-btn red">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                        <line x1="4" y1="4" x2="20" y2="20" stroke="#b71c1c" stroke-width="3" stroke-linecap="round"/>
+                        <line x1="20" y1="4" x2="4" y2="20" stroke="#b71c1c" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    onX Maps
+                </a>
+            </div>
+        </div>
 
+    </div><!-- /cmd-body -->
+
+    <!-- ── Mobile-only: Layer List section ── -->
+    <div id="mobile-layers-toggle" class="mobile-only-toggle">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+        </svg>
+        Layer List
+        <span id="mobile-layers-arrow">▲</span>
     </div>
+
+    <div id="mobile-layers-body" class="collapsed mobile-only-body">
+        <div class="lp-basemap-row">
+            <div class="lp-basemap-btn active" id="m-btn-osm">Street</div>
+            <div class="lp-basemap-btn" id="m-btn-satellite">Satellite</div>
+            <div class="lp-basemap-btn" id="m-btn-hillshade">Terrain</div>
+        </div>
+        <div class="mobile-layer-scroll">
+
+            <div class="lp-group-header" data-group="m-boundaries">Boundaries <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-m-boundaries">
+                <label class="lp-row"><input type="checkbox" id="m-chk-gmu" checked><span class="lp-symbol"><span class="lp-outline"></span></span>GMU Boundaries</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-county"><span class="lp-symbol"><span class="lp-line" style="background:#c0392b;"></span></span>County Lines</label>
+            </div>
+
+            <div class="lp-group-header" data-group="m-moose-habitat">Moose Habitat &amp; Range <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-m-moose-habitat">
+                <label class="lp-row"><input type="checkbox" id="m-chk-mooseHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:linear-gradient(to bottom,#1a6e3c,#52b788,#d4edda);"></span></span>Habitat Quality</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-coreHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span></span>Year-Round Range</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-mooseSummer"><span class="lp-symbol"><span class="lp-swatch" style="background:#f39c12;opacity:0.8;"></span></span>Summer Range</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-mooseWinter"><span class="lp-symbol"><span class="lp-swatch" style="background:#3498db;opacity:0.8;"></span></span>Winter Range</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-mooseMigration"><span class="lp-symbol"><span class="lp-swatch" style="background:#9b59b6;opacity:0.8;"></span></span>Migration Corridors</label>
+            </div>
+
+            <div class="lp-group-header" data-group="m-access">Trails &amp; Access <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-m-access">
+                <label class="lp-row"><input type="checkbox" id="m-chk-accessZone"><span class="lp-symbol"><span class="lp-swatch" style="background:#f0a500;opacity:0.4;border-color:#c17f00;"></span></span>Trailhead Access Zones</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-trailheads"><span class="lp-symbol"><span class="lp-dot" style="background:#e65100;border-color:#bf360c;"></span></span>Trailheads</label>
+            </div>
+
+            <div class="lp-group-header" data-group="m-moose-units">Moose Mgmt Units <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-m-moose-units">
+                <label class="lp-row"><input type="checkbox" id="m-chk-mooseDaus"><span class="lp-symbol"><span class="lp-swatch" style="background:#e74c3c;opacity:0.65;"></span></span>Moose DAUs</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-mooseGmus"><span class="lp-symbol"><span class="lp-swatch" style="background:#1abc9c;opacity:0.65;"></span></span>Moose GMUs</label>
+            </div>
+            <div class="lp-group-body" id="group-m-land-ownership">
+                <label class="lp-row"><input type="checkbox" id="m-chk-federal"><span class="lp-symbol"><span class="lp-multi"><span style="background:#27ae60;"></span><span style="background:#e67e22;"></span><span style="background:#9b59b6;"></span></span></span>Federal Lands</label>
+                <label class="lp-row"><input type="checkbox" id="m-chk-swa"><span class="lp-symbol"><span class="lp-multi"><span style="background:#ffff00;border:1px solid #ccc;"></span><span style="background:#ff4444;"></span></span></span>SWAs &amp; State Parks</label>
+            </div>
+
+            <div class="lp-group-header" data-group="m-land-ownership">Land Ownership <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-m-water">
+                <label class="lp-row"><input type="checkbox" id="m-chk-water" checked><span class="lp-symbol"><span class="lp-swatch" style="background:#1e88e5;border-color:#0d47a1;"></span></span>NHD Streams &amp; Lakes</label>
+            </div>
+
+        </div><!-- /mobile-layer-scroll -->
+    </div><!-- /mobile-layers-body -->
+
 </div><!-- /left-panel -->
 
 <!-- ══════════════════════════════════════════════
      UNIT INFO DOCK — slide-up panel, bottom-left
-     Tab always visible once a GMU is selected.
-     Arrow (▲) in tab, content expands upward.
 ══════════════════════════════════════════════ -->
 <div id="unit-dock">
-
-    <!-- Content body — expands upward above the tab -->
     <div id="unit-dock-body">
         <div id="unit-dock-scroll"></div>
     </div>
-
-    <!-- Tab header — mirrors Layer List chrome -->
     <div id="unit-dock-tab" role="button" aria-label="Toggle unit info panel">
         <div id="unit-dock-tab-left">
-            <!-- Small map pin icon -->
             <svg id="unit-dock-tab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
                 <circle cx="12" cy="10" r="3"/>
@@ -148,21 +200,19 @@
             </div>
         </div>
         <div id="unit-dock-tab-right">
-            <!-- Minimize (collapse to tab only) — dash icon -->
             <button class="dock-btn" id="dock-minimize-btn" aria-label="Minimize panel" title="Minimize">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <!-- Close (dismiss dock entirely) -->
             <button class="dock-btn" id="dock-close-btn" aria-label="Close panel" title="Close">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
     </div>
-
-</div><!-- /unit-dock -->
+</div>
 
 <!-- ══════════════════════════════════════════════
-     LAYER PANEL (top-right)
+     LAYER PANEL — desktop, top-right
+     Hidden on mobile via CSS
 ══════════════════════════════════════════════ -->
 <div id="layer-panel">
     <div class="panel-header" id="layer-panel-header">
@@ -170,75 +220,89 @@
     </div>
     <div id="layer-panel-body">
 
+        <!-- Basemap buttons — sticky top -->
         <div class="lp-basemap-row">
             <div class="lp-basemap-btn active" id="btn-osm">Street</div>
             <div class="lp-basemap-btn" id="btn-satellite">Satellite</div>
             <div class="lp-basemap-btn" id="btn-hillshade">Terrain</div>
         </div>
 
+        <!-- Scrollable groups -->
         <div id="layer-panel-groups">
-        <div class="lp-group-header" data-group="boundaries">Boundaries <span class="lp-group-arrow">▼</span></div>
-        <div class="lp-group-body" id="group-boundaries">
-            <label class="lp-row"><input type="checkbox" id="chk-gmu" checked><span class="lp-symbol"><span class="lp-outline"></span></span>GMU Boundaries</label>
-            <label class="lp-row"><input type="checkbox" id="chk-county"><span class="lp-symbol"><span class="lp-line" style="background:#e74c3c;"></span></span>County Lines</label>
-        </div>
 
-        <div class="lp-group-header" data-group="moose-habitat">Moose Habitat &amp; Range <span class="lp-group-arrow">▼</span></div>
-        <div class="lp-group-body" id="group-moose-habitat">
-            <label class="lp-row"><input type="checkbox" id="chk-mooseHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:linear-gradient(to bottom,#1a6e3c,#52b788,#d4edda);"></span></span>Habitat Quality</label>
-            <div class="lp-sublabel" id="habitat-sublabel">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#1a6e3c;"></span>Excellent</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#52b788;"></span>Good</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#95d5b2;"></span>Moderate</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#d4edda;"></span>Low / Other</div>
+            <!-- Boundaries -->
+            <div class="lp-group-header" data-group="boundaries">Boundaries <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-boundaries">
+                <label class="lp-row"><input type="checkbox" id="chk-gmu" checked><span class="lp-symbol"><span class="lp-outline"></span></span>GMU Boundaries</label>
+                <label class="lp-row"><input type="checkbox" id="chk-county"><span class="lp-symbol"><span class="lp-line" style="background:#c0392b;"></span></span>County Lines</label>
             </div>
-            <label class="lp-row"><input type="checkbox" id="chk-coreHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span></span>Year-Round Range</label>
-            <div class="lp-sublabel" id="core-sublabel" style="display:flex;flex-direction:column;">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#7b2d8b;border-color:#4a1a54;"></span>Primary (≥5,000 ac)</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span>Secondary (1,000–4,999 ac)</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#dba3e8;border-color:#b85cc8;"></span>Remnant (&lt;1,000 ac)</div>
-            </div>
-            <label class="lp-row"><input type="checkbox" id="chk-mooseSummer"><span class="lp-symbol"><span class="lp-swatch" style="background:#f39c12;opacity:0.8;"></span></span>Summer Range</label>
-            <label class="lp-row"><input type="checkbox" id="chk-mooseWinter"><span class="lp-symbol"><span class="lp-swatch" style="background:#3498db;opacity:0.8;"></span></span>Winter Range</label>
-            <label class="lp-row"><input type="checkbox" id="chk-mooseMigration"><span class="lp-symbol"><span class="lp-swatch" style="background:#9b59b6;opacity:0.8;"></span></span>Migration Corridors</label>
-        </div>
 
-        <div class="lp-group-header" data-group="moose-units">Moose Mgmt Units <span class="lp-group-arrow">▼</span></div>
-        <div class="lp-group-body" id="group-moose-units">
-            <label class="lp-row"><input type="checkbox" id="chk-mooseDaus"><span class="lp-symbol"><span class="lp-swatch" style="background:#e74c3c;opacity:0.65;"></span></span>Moose DAUs</label>
-            <label class="lp-row"><input type="checkbox" id="chk-mooseGmus"><span class="lp-symbol"><span class="lp-swatch" style="background:#1abc9c;opacity:0.65;"></span></span>Moose GMUs</label>
-        </div>
-
-        <div class="lp-group-header" data-group="land-ownership">Land Ownership <span class="lp-group-arrow">▼</span></div>
-        <div class="lp-group-body" id="group-land-ownership">
-            <label class="lp-row"><input type="checkbox" id="chk-federal"><span class="lp-symbol"><span class="lp-multi"><span style="background:#27ae60;"></span><span style="background:#e67e22;"></span><span style="background:#9b59b6;"></span></span></span>Federal Lands</label>
-            <div class="lp-sublabel" id="federal-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#27ae60;"></span>US Forest Service</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#e67e22;"></span>BLM</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#9b59b6;"></span>NPS</div>
+            <!-- Moose Habitat & Range -->
+            <div class="lp-group-header" data-group="moose-habitat">Moose Habitat &amp; Range <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-moose-habitat">
+                <label class="lp-row"><input type="checkbox" id="chk-mooseHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:linear-gradient(to bottom,#1a6e3c,#52b788,#d4edda);"></span></span>Habitat Quality</label>
+                <div class="lp-sublabel" id="habitat-sublabel">
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#1a6e3c;"></span>Excellent</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#52b788;"></span>Good</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#95d5b2;"></span>Moderate</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#d4edda;"></span>Low / Other</div>
+                </div>
+                <label class="lp-row"><input type="checkbox" id="chk-coreHabitat" checked><span class="lp-symbol"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span></span>Year-Round Range</label>
+                <div class="lp-sublabel" id="core-sublabel" style="display:flex;flex-direction:column;">
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#7b2d8b;border-color:#4a1a54;"></span>Primary (≥5,000 ac)</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#b85cc8;border-color:#7b2d8b;"></span>Secondary (1,000–4,999 ac)</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#dba3e8;border-color:#b85cc8;"></span>Remnant (&lt;1,000 ac)</div>
+                </div>
+                <label class="lp-row"><input type="checkbox" id="chk-mooseSummer"><span class="lp-symbol"><span class="lp-swatch" style="background:#f39c12;opacity:0.8;"></span></span>Summer Range</label>
+                <label class="lp-row"><input type="checkbox" id="chk-mooseWinter"><span class="lp-symbol"><span class="lp-swatch" style="background:#3498db;opacity:0.8;"></span></span>Winter Range</label>
+                <label class="lp-row"><input type="checkbox" id="chk-mooseMigration"><span class="lp-symbol"><span class="lp-swatch" style="background:#9b59b6;opacity:0.8;"></span></span>Migration Corridors</label>
             </div>
-            <label class="lp-row"><input type="checkbox" id="chk-swa"><span class="lp-symbol"><span class="lp-multi"><span style="background:#ffff00;border:1px solid #ccc;"></span><span style="background:#ff4444;"></span></span></span>SWAs &amp; State Parks</label>
-            <div class="lp-sublabel" id="swa-sublabel" style="display:none;">
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#ffff00;border:1px solid #aaa;"></span>State Wildlife Area</div>
-                <div class="lp-subrow"><span class="lp-swatch" style="background:#ff4444;"></span>State Park</div>
-            </div>
-        </div>
 
-        <div class="lp-group-header" data-group="access">Trails &amp; Access <span class="lp-group-arrow">▼</span></div>
-        <div class="lp-group-body" id="group-access">
-            <label class="lp-row"><input type="checkbox" id="chk-accessZone"><span class="lp-symbol"><span class="lp-swatch" style="background:#f0a500;opacity:0.4;border-color:#c17f00;"></span></span>Trailhead Access Zones</label>
-            <label class="lp-row"><input type="checkbox" id="chk-trailheads"><span class="lp-symbol"><span class="lp-dot" style="background:#e65100;border-color:#bf360c;"></span></span>Trailheads</label>
-        </div>
+            <!-- Trails & Access — moved above Moose Mgmt Units -->
+            <div class="lp-group-header" data-group="access">Trails &amp; Access <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-access">
+                <label class="lp-row"><input type="checkbox" id="chk-accessZone"><span class="lp-symbol"><span class="lp-swatch" style="background:#f0a500;opacity:0.4;border-color:#c17f00;"></span></span>Trailhead Access Zones</label>
+                <label class="lp-row"><input type="checkbox" id="chk-trailheads"><span class="lp-symbol"><span class="lp-dot" style="background:#e65100;border-color:#bf360c;"></span></span>Trailheads</label>
+            </div>
+
+            <!-- Moose Mgmt Units -->
+            <div class="lp-group-header" data-group="moose-units">Moose Mgmt Units <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-moose-units">
+                <label class="lp-row"><input type="checkbox" id="chk-mooseDaus"><span class="lp-symbol"><span class="lp-swatch" style="background:#e74c3c;opacity:0.65;"></span></span>Moose DAUs</label>
+                <label class="lp-row"><input type="checkbox" id="chk-mooseGmus"><span class="lp-symbol"><span class="lp-swatch" style="background:#1abc9c;opacity:0.65;"></span></span>Moose GMUs</label>
+            </div>
+            <div class="lp-group-header" data-group="land-ownership">Land Ownership <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-land-ownership">
+                <label class="lp-row"><input type="checkbox" id="chk-federal"><span class="lp-symbol"><span class="lp-multi"><span style="background:#27ae60;"></span><span style="background:#e67e22;"></span><span style="background:#9b59b6;"></span></span></span>Federal Lands</label>
+                <div class="lp-sublabel" id="federal-sublabel" style="display:none;">
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#27ae60;"></span>US Forest Service</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#e67e22;"></span>BLM</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#9b59b6;"></span>NPS</div>
+                </div>
+                <label class="lp-row"><input type="checkbox" id="chk-swa"><span class="lp-symbol"><span class="lp-multi"><span style="background:#ffff00;border:1px solid #ccc;"></span><span style="background:#ff4444;"></span></span></span>SWAs &amp; State Parks</label>
+                <div class="lp-sublabel" id="swa-sublabel" style="display:none;">
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#ffff00;border:1px solid #aaa;"></span>State Wildlife Area</div>
+                    <div class="lp-subrow"><span class="lp-swatch" style="background:#ff4444;"></span>State Park</div>
+                </div>
+            </div>
+
+            <!-- Land Ownership -->
+            <div class="lp-group-header" data-group="water">Water Sources <span class="lp-group-arrow">▼</span></div>
+            <div class="lp-group-body" id="group-water">
+                <label class="lp-row"><input type="checkbox" id="chk-water" checked><span class="lp-symbol"><span class="lp-swatch" style="background:#1e88e5;border-color:#0d47a1;"></span></span>NHD Streams &amp; Lakes</label>
+                <div class="lp-sublabel" style="display:flex;flex-direction:column;">
+                    <div class="lp-subrow" style="font-size:0.72em;color:#7f8c8d;font-style:italic;">USGS National Hydrography Dataset</div>
+                </div>
+            </div>
 
         </div><!-- /layer-panel-groups -->
-    </div>
-</div>
+    </div><!-- /layer-panel-body -->
+</div><!-- /layer-panel -->
 
 <!-- ══════════════════════════════════════════════
      BOTTOM-LEFT NAV CONTROLS
 ══════════════════════════════════════════════ -->
 <div id="nav-controls">
-    <!-- GPS Locate -->
     <div class="nav-btn" id="locate-btn" role="button" aria-label="Find my location" tabindex="0">
         <svg width="17" height="17" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="7"/>
@@ -250,10 +314,7 @@
         </svg>
         <div class="nav-tip">Find My Location</div>
     </div>
-
     <div class="nav-sep"></div>
-
-    <!-- Return to full Colorado extent -->
     <div class="nav-btn" id="btn-home" role="button" aria-label="Return to full extent" tabindex="0">
         <svg width="17" height="17" viewBox="0 0 24 24">
             <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
@@ -261,28 +322,17 @@
         </svg>
         <div class="nav-tip">Full Extent</div>
     </div>
-
-    <!-- Previous extent -->
     <div class="nav-btn disabled" id="btn-prev-extent" role="button" aria-label="Previous extent" tabindex="0">
-        <svg width="17" height="17" viewBox="0 0 24 24">
-            <polyline points="15 18 9 12 15 6"/>
-        </svg>
+        <svg width="17" height="17" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
         <div class="nav-tip">Previous Extent</div>
     </div>
-
-    <!-- Next extent -->
     <div class="nav-btn disabled" id="btn-next-extent" role="button" aria-label="Next extent" tabindex="0">
-        <svg width="17" height="17" viewBox="0 0 24 24">
-            <polyline points="9 18 15 12 9 6"/>
-        </svg>
+        <svg width="17" height="17" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         <div class="nav-tip">Next Extent</div>
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     SCRIPTS — load order matters:
-     config → map → ui → popup → layers
-══════════════════════════════════════════════ -->
+<!-- Scripts — load order: config → map → ui → popup → layers -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/config.js"></script>
 <script src="js/map.js"></script>

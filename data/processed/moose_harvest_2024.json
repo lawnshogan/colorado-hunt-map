@@ -1,0 +1,602 @@
+{
+  "year": 2024,
+  "source": "CPW 2024 Moose Licenses, Hunters, Harvest & Recreation Days \u2014 All Manners of Take",
+  "statewide": {
+    "total_licenses": 670,
+    "total_hunters": 633,
+    "total_harvest": 501,
+    "overall_success_pct": 79,
+    "units_with_data": 65
+  },
+  "success_thresholds": {
+    "high": 100,
+    "medium": 75
+  },
+  "units": {
+    "4": {
+      "unit": "4",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 0,
+      "success_pct": 0,
+      "avg_days": 7.0,
+      "success_tier": "Low"
+    },
+    "6": {
+      "unit": "6",
+      "licenses": 56,
+      "hunters": 55,
+      "harvest": 41,
+      "success_pct": 75,
+      "avg_days": 4.4,
+      "success_tier": "Medium"
+    },
+    "7": {
+      "unit": "7",
+      "licenses": 18,
+      "hunters": 15,
+      "harvest": 7,
+      "success_pct": 47,
+      "avg_days": 7.1,
+      "success_tier": "Low"
+    },
+    "8": {
+      "unit": "8",
+      "licenses": 26,
+      "hunters": 26,
+      "harvest": 23,
+      "success_pct": 88,
+      "avg_days": 6.0,
+      "success_tier": "Medium"
+    },
+    "12": {
+      "unit": "12",
+      "licenses": 7,
+      "hunters": 5,
+      "harvest": 2,
+      "success_pct": 40,
+      "avg_days": 8.4,
+      "success_tier": "Low"
+    },
+    "14": {
+      "unit": "14",
+      "licenses": 39,
+      "hunters": 39,
+      "harvest": 32,
+      "success_pct": 82,
+      "avg_days": 6.7,
+      "success_tier": "Medium"
+    },
+    "15": {
+      "unit": "15",
+      "licenses": 15,
+      "hunters": 13,
+      "harvest": 10,
+      "success_pct": 77,
+      "avg_days": 8.0,
+      "success_tier": "Medium"
+    },
+    "16": {
+      "unit": "16",
+      "licenses": 38,
+      "hunters": 38,
+      "harvest": 30,
+      "success_pct": 79,
+      "avg_days": 6.3,
+      "success_tier": "Medium"
+    },
+    "17": {
+      "unit": "17",
+      "licenses": 16,
+      "hunters": 15,
+      "harvest": 8,
+      "success_pct": 53,
+      "avg_days": 7.3,
+      "success_tier": "Low"
+    },
+    "18": {
+      "unit": "18",
+      "licenses": 30,
+      "hunters": 27,
+      "harvest": 21,
+      "success_pct": 78,
+      "avg_days": 4.4,
+      "success_tier": "Medium"
+    },
+    "19": {
+      "unit": "19",
+      "licenses": 22,
+      "hunters": 18,
+      "harvest": 15,
+      "success_pct": 83,
+      "avg_days": 4.8,
+      "success_tier": "Medium"
+    },
+    "20": {
+      "unit": "20",
+      "licenses": 9,
+      "hunters": 7,
+      "harvest": 4,
+      "success_pct": 57,
+      "avg_days": 7.4,
+      "success_tier": "Low"
+    },
+    "23": {
+      "unit": "23",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 15.0,
+      "success_tier": "High"
+    },
+    "24": {
+      "unit": "24",
+      "licenses": 13,
+      "hunters": 13,
+      "harvest": 9,
+      "success_pct": 69,
+      "avg_days": 5.5,
+      "success_tier": "Low"
+    },
+    "25": {
+      "unit": "25",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 4.0,
+      "success_tier": "High"
+    },
+    "26": {
+      "unit": "26",
+      "licenses": 4,
+      "hunters": 4,
+      "harvest": 4,
+      "success_pct": 100,
+      "avg_days": 1.5,
+      "success_tier": "High"
+    },
+    "28": {
+      "unit": "28",
+      "licenses": 34,
+      "hunters": 34,
+      "harvest": 25,
+      "success_pct": 74,
+      "avg_days": 8.0,
+      "success_tier": "Low"
+    },
+    "29": {
+      "unit": "29",
+      "licenses": 13,
+      "hunters": 13,
+      "harvest": 11,
+      "success_pct": 85,
+      "avg_days": 6.8,
+      "success_tier": "Medium"
+    },
+    "34": {
+      "unit": "34",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 1,
+      "success_pct": 50,
+      "avg_days": 4.5,
+      "success_tier": "Low"
+    },
+    "36": {
+      "unit": "36",
+      "licenses": 3,
+      "hunters": 3,
+      "harvest": 3,
+      "success_pct": 100,
+      "avg_days": 5.7,
+      "success_tier": "High"
+    },
+    "37": {
+      "unit": "37",
+      "licenses": 31,
+      "hunters": 28,
+      "harvest": 20,
+      "success_pct": 71,
+      "avg_days": 4.6,
+      "success_tier": "Low"
+    },
+    "38": {
+      "unit": "38",
+      "licenses": 17,
+      "hunters": 17,
+      "harvest": 13,
+      "success_pct": 76,
+      "avg_days": 5.1,
+      "success_tier": "Medium"
+    },
+    "39": {
+      "unit": "39",
+      "licenses": 8,
+      "hunters": 8,
+      "harvest": 7,
+      "success_pct": 88,
+      "avg_days": 7.4,
+      "success_tier": "Medium"
+    },
+    "40": {
+      "unit": "40",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 0,
+      "success_pct": 0,
+      "avg_days": 5.0,
+      "success_tier": "Low"
+    },
+    "41": {
+      "unit": "41",
+      "licenses": 13,
+      "hunters": 5,
+      "harvest": 1,
+      "success_pct": 20,
+      "avg_days": 12.2,
+      "success_tier": "Low"
+    },
+    "42": {
+      "unit": "42",
+      "licenses": 8,
+      "hunters": 8,
+      "harvest": 5,
+      "success_pct": 63,
+      "avg_days": 11.1,
+      "success_tier": "Low"
+    },
+    "43": {
+      "unit": "43",
+      "licenses": 6,
+      "hunters": 6,
+      "harvest": 4,
+      "success_pct": 67,
+      "avg_days": 6.7,
+      "success_tier": "Low"
+    },
+    "44": {
+      "unit": "44",
+      "licenses": 3,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 2.5,
+      "success_tier": "High"
+    },
+    "45": {
+      "unit": "45",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 4.5,
+      "success_tier": "High"
+    },
+    "46": {
+      "unit": "46",
+      "licenses": 10,
+      "hunters": 10,
+      "harvest": 8,
+      "success_pct": 80,
+      "avg_days": 3.8,
+      "success_tier": "Medium"
+    },
+    "47": {
+      "unit": "47",
+      "licenses": 3,
+      "hunters": 2,
+      "harvest": 1,
+      "success_pct": 50,
+      "avg_days": 7.5,
+      "success_tier": "Low"
+    },
+    "48": {
+      "unit": "48",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 1,
+      "success_pct": 50,
+      "avg_days": 5.0,
+      "success_tier": "Low"
+    },
+    "49": {
+      "unit": "49",
+      "licenses": 17,
+      "hunters": 14,
+      "harvest": 12,
+      "success_pct": 86,
+      "avg_days": 5.1,
+      "success_tier": "Medium"
+    },
+    "51": {
+      "unit": "51",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 0,
+      "success_pct": 0,
+      "avg_days": 3.0,
+      "success_tier": "Low"
+    },
+    "52": {
+      "unit": "52",
+      "licenses": 3,
+      "hunters": 2,
+      "harvest": 0,
+      "success_pct": 0,
+      "avg_days": 8.0,
+      "success_tier": "Low"
+    },
+    "53": {
+      "unit": "53",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 12.0,
+      "success_tier": "High"
+    },
+    "54": {
+      "unit": "54",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 9.5,
+      "success_tier": "High"
+    },
+    "55": {
+      "unit": "55",
+      "licenses": 7,
+      "hunters": 7,
+      "harvest": 7,
+      "success_pct": 100,
+      "avg_days": 5.0,
+      "success_tier": "High"
+    },
+    "56": {
+      "unit": "56",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 5.0,
+      "success_tier": "High"
+    },
+    "65": {
+      "unit": "65",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 11.0,
+      "success_tier": "High"
+    },
+    "66": {
+      "unit": "66",
+      "licenses": 8,
+      "hunters": 8,
+      "harvest": 8,
+      "success_pct": 100,
+      "avg_days": 2.5,
+      "success_tier": "High"
+    },
+    "67": {
+      "unit": "67",
+      "licenses": 7,
+      "hunters": 7,
+      "harvest": 7,
+      "success_pct": 100,
+      "avg_days": 3.3,
+      "success_tier": "High"
+    },
+    "68": {
+      "unit": "68",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 10.0,
+      "success_tier": "High"
+    },
+    "75": {
+      "unit": "75",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 1.0,
+      "success_tier": "High"
+    },
+    "76": {
+      "unit": "76",
+      "licenses": 17,
+      "hunters": 16,
+      "harvest": 14,
+      "success_pct": 88,
+      "avg_days": 3.3,
+      "success_tier": "Medium"
+    },
+    "77": {
+      "unit": "77",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 2.0,
+      "success_tier": "High"
+    },
+    "79": {
+      "unit": "79",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 9.0,
+      "success_tier": "High"
+    },
+    "161": {
+      "unit": "161",
+      "licenses": 35,
+      "hunters": 35,
+      "harvest": 32,
+      "success_pct": 91,
+      "avg_days": 4.0,
+      "success_tier": "Medium"
+    },
+    "171": {
+      "unit": "171",
+      "licenses": 36,
+      "hunters": 35,
+      "harvest": 31,
+      "success_pct": 89,
+      "avg_days": 4.1,
+      "success_tier": "Medium"
+    },
+    "181": {
+      "unit": "181",
+      "licenses": 3,
+      "hunters": 3,
+      "harvest": 3,
+      "success_pct": 100,
+      "avg_days": 7.7,
+      "success_tier": "High"
+    },
+    "191": {
+      "unit": "191",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 0,
+      "success_pct": 0,
+      "avg_days": 7.0,
+      "success_tier": "Low"
+    },
+    "201": {
+      "unit": "201",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 8.0,
+      "success_tier": "High"
+    },
+    "231": {
+      "unit": "231",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 8.0,
+      "success_tier": "High"
+    },
+    "361": {
+      "unit": "361",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 1,
+      "success_pct": 50,
+      "avg_days": 19.5,
+      "success_tier": "Low"
+    },
+    "371": {
+      "unit": "371",
+      "licenses": 9,
+      "hunters": 9,
+      "harvest": 9,
+      "success_pct": 100,
+      "avg_days": 3.2,
+      "success_tier": "High"
+    },
+    "421": {
+      "unit": "421",
+      "licenses": 12,
+      "hunters": 12,
+      "harvest": 9,
+      "success_pct": 75,
+      "avg_days": 6.5,
+      "success_tier": "Medium"
+    },
+    "444": {
+      "unit": "444",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 10.0,
+      "success_tier": "High"
+    },
+    "471": {
+      "unit": "471",
+      "licenses": 2,
+      "hunters": 2,
+      "harvest": 2,
+      "success_pct": 100,
+      "avg_days": 5.0,
+      "success_tier": "High"
+    },
+    "481": {
+      "unit": "481",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 11.0,
+      "success_tier": "High"
+    },
+    "500": {
+      "unit": "500",
+      "licenses": 15,
+      "hunters": 15,
+      "harvest": 14,
+      "success_pct": 93,
+      "avg_days": 4.7,
+      "success_tier": "Medium"
+    },
+    "501": {
+      "unit": "501",
+      "licenses": 11,
+      "hunters": 11,
+      "harvest": 11,
+      "success_pct": 100,
+      "avg_days": 2.6,
+      "success_tier": "High"
+    },
+    "511": {
+      "unit": "511",
+      "licenses": 6,
+      "hunters": 6,
+      "harvest": 6,
+      "success_pct": 100,
+      "avg_days": 4.0,
+      "success_tier": "High"
+    },
+    "521": {
+      "unit": "521",
+      "licenses": 8,
+      "hunters": 8,
+      "harvest": 5,
+      "success_pct": 63,
+      "avg_days": 9.1,
+      "success_tier": "Low"
+    },
+    "561": {
+      "unit": "561",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 4.0,
+      "success_tier": "High"
+    },
+    "751": {
+      "unit": "751",
+      "licenses": 1,
+      "hunters": 1,
+      "harvest": 1,
+      "success_pct": 100,
+      "avg_days": 8.0,
+      "success_tier": "High"
+    }
+  }
+}
