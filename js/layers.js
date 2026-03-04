@@ -50,7 +50,10 @@ const loadDauLayer = async ({ apiUrl, fallbackPath, stateKey, layerGroup, pane, 
     let data = null;
 
     try {
-        const r = await fetch(apiUrl, { signal: AbortSignal.timeout(12000) });
+        let signal;
+        try { signal = AbortSignal.timeout(12000); }
+        catch(e) { const c = new AbortController(); setTimeout(() => c.abort(), 12000); signal = c.signal; }
+        const r = await fetch(apiUrl, { signal });
         if (r.ok) {
             data = await r.json();
             if (!data.features?.length) data = null;
@@ -291,20 +294,27 @@ const loadTrailheadData = async () => {
                 const p    = f.properties;
                 const name = p.name||p.Name||p.NAME||p.TrlhdName||p.TrailheadName||
                              p.TRAILHEADNAME||p.Trailhead_Name||p.trailhead_name||'Trailhead';
-                const mgmt   = p.ManagingOrg  || p.MANAGINGORG   || '—';
-                const access = p.AccessType   || p.ACCESSTYPE    || '—';
-                const park   = p.ParkingSpots || p.PARKINGSPOTS  || '—';
+                const latlng = layer.getLatLng();
+                const lat    = latlng.lat.toFixed(5);
+                const lng    = latlng.lng.toFixed(5);
                 layer.bindTooltip(name, { className:'trail-label' });
-                layer.bindPopup(`<div style="padding:10px 14px;">
-                    <b style="color:#e65100;">📍 ${name}</b>
-                    <table style="font-size:0.82em;margin-top:5px;border-collapse:collapse;">
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Managed By</td><td>${mgmt}</td></tr>
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Access</td><td>${access}</td></tr>
-                        <tr><td style="font-weight:bold;padding:1px 8px 1px 0;color:#555;">Parking</td><td>${park}</td></tr>
-                    </table></div>`);
+                layer.bindPopup(`
+                    <div class="loc-popup">
+                        <div class="loc-popup-header" style="background:#bf360c;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+                                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            <span>${name}</span>
+                        </div>
+                        <div class="loc-popup-body">
+                            <div class="loc-row"><span class="loc-label">Latitude</span><span class="loc-val">${lat}°</span></div>
+                            <div class="loc-row"><span class="loc-label">Longitude</span><span class="loc-val">${lng}°</span></div>
+                        </div>
+                    </div>`, { maxWidth:240, minWidth:200 });
                 layer.on('click', e => {
                     L.DomEvent.stopPropagation(e);
-                    map.setView(layer.getLatLng(), 14, { animate:true });
+                    map.setView(layer.getLatLng(), 13, { animate:true });
                     layer.openPopup();
                 });
             }

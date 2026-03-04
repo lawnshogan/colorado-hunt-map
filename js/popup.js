@@ -177,13 +177,24 @@ function nearbyTrailheads(gmuLayer, maxMiles) {
 var NHD_FTYPE_FLOW = {460:'Stream/River',558:'Stream/River',336:'Canal/Ditch',334:'Connector'};
 var NHD_FTYPE_BODY = {390:'Lake/Pond',436:'Reservoir',361:'Playa',466:'Swamp/Marsh'};
 
+/* Cross-browser timeout signal — AbortSignal.timeout() is not available in all browsers */
+function makeTimeoutSignal(ms) {
+    try {
+        return AbortSignal.timeout(ms);
+    } catch(e) {
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), ms);
+        return ctrl.signal;
+    }
+}
+
 async function fetchNhdStats(gmuLayer) {
     try {
         var b = gmuLayer.getBounds();
         var env = b.getWest()+','+b.getSouth()+','+b.getEast()+','+b.getNorth();
         var base = 'https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer';
         var qs = 'geometry='+encodeURIComponent(env)+'&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&returnGeometry=false&f=json';
-        var sig = AbortSignal.timeout(9000);
+        var sig = makeTimeoutSignal(9000);
         var [flowRes, bodyRes] = await Promise.allSettled([
             fetch(base+'/6/query?outFields=GNIS_Name,FType,LengthKM&resultRecordCount=300&'+qs,{signal:sig}).then(function(r){return r.json();}),
             fetch(base+'/8/query?outFields=GNIS_Name,FType,AreaSqKm&resultRecordCount=150&'+qs,{signal:sig}).then(function(r){return r.json();})
@@ -225,10 +236,10 @@ function buildWaterCard(w) {
     var density   = w.streamMi>200?'High':w.streamMi>80?'Moderate':w.streamMi>0?'Low':'None';
     var dColor    = {High:'#1a6e3c',Moderate:'#e67e22',Low:'#95a5a6',None:'#bbb'}[density];
     var ripNote   = {
-        High:'Dense stream network — excellent riparian browse. Moose densities strongly correlate with stream miles; prioritize willow-lined drainages.',
-        Moderate:'Moderate stream coverage. Focus glassing near named drainages and creek bends for concentrated moose sign.',
-        Low:'Limited surface water. Moose presence may be seasonal — cross-reference with winter range coverage.',
-        None:'Minimal surface water detected. Check adjacent units or higher elevations for seasonal water sources.'
+        High:'This unit has a dense stream and drainage network — a strong indicator of quality moose habitat. Moose are semi-aquatic and depend on riparian corridors for browse (willow, alder, birch) and thermoregulation. Prioritize creek confluences, beaver ponds, and willow-choked drainages. Early mornings in October, moose commonly stage in open meadows adjacent to stream corridors before retreating to timber.',
+        Moderate:'Moderate surface water coverage. Moose will concentrate near the named drainages in this unit, especially at creek bends and meadow-stream edges. Glassing from a high vantage overlooking a drainage bottom during the first and last 30 minutes of shooting light is often more productive than covering ground.',
+        Low:'Limited surface water in this unit. Moose are still present but may travel further between feeding and bedding areas. Focus scouting on any water you can find on a topo map — even a seasonal pond or spring can anchor a bull. Cross-reference with Year-Round Range coverage to identify where moose are most likely to concentrate.',
+        None:'Minimal surface water detected by NHD for this unit. This could reflect a high-elevation or arid portion of the state. Check adjacent topographic basins and confirm with a detailed topo. Moose in water-limited areas often use areas near snowmelt drainages and north-facing slopes with dense willow and alder.'
     }[density];
     var namesHtml = w.names.length
         ? '<div class="water-names">'+w.names.slice(0,5).map(function(n){return '<span class="water-name-chip">'+n+'</span>';}).join('')+'</div>'
@@ -428,7 +439,7 @@ function buildGmuPopupContent(leafletLayer) {
                 var chkM=document.getElementById('m-chk-trailheads');
                 if(chkD&&!chkD.checked){chkD.checked=true;if(chkM)chkM.checked=true;map.addLayer(layers.trailheads);}
                 minimizeDock();
-                map.setView([lat,lng],15,{animate:true});
+                map.setView([lat, lng], 13, { animate: true });
                 map.once('moveend',function(){
                     var found=false;
                     layers.trailheads.eachLayer(function(child){
